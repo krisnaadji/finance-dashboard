@@ -1,0 +1,60 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "transactions": "Transactions",
+    "accounts": "Accounts",
+    "categories": "Categories",
+    "signOut": "Sign out"
+  },
+  "summary": {
+    "income": "Total Income",
+    "expense": "Total Expenses",
+    "balance": "Balance",
+    "topExpense": "Biggest Expense",
+    "noData": "No transactions this period"
+  },
+  "transactions": {
+    "title": "Transactions",
+    "empty": "No transactions yet",
+    "date": "Date",
+    "description": "Description",
+    "category": "Category",
+    "amount": "Amount",
+    "type": "Type",
+    "income": "Income",
+    "expense": "Expense",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirmDelete": "Delete this transaction?",
+    "filterFrom": "From",
+    "filterTo": "To"
+  },
+  "accounts": {
+    "title": "Accounts",
+    "create": "Create New Account",
+    "name": "Account Name",
+    "type": "Type",
+    "personal": "Personal",
+    "group": "Group / Family",
+    "linkBot": "Link WhatsApp",
+    "generateCode": "Generate Code",
+    "codeInstruction": "Send this in WhatsApp:",
+    "codeExpiry": "Code valid for 15 minutes"
+  },
+  "categories": {
+    "title": "Categories",
+    "income": "Income",
+    "expense": "Expense",
+    "addCustom": "Add Category",
+    "name": "Category Name",
+    "custom": "Custom"
+  },
+  "language": { "label": "Language", "id": "Indonesian", "en": "English" },
+  "auth": { "signIn": "Sign in with Google", "signOut": "Sign out" },
+  "period": {
+    "thisMonth": "This Month",
+    "lastMonth": "Last Month",
+    "thisWeek": "This Week",
+    "custom": "Custom"
+  }
+}

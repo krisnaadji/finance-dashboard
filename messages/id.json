@@ -1,0 +1,60 @@
+{
+  "nav": {
+    "dashboard": "Dasbor",
+    "transactions": "Transaksi",
+    "accounts": "Akun",
+    "categories": "Kategori",
+    "signOut": "Keluar"
+  },
+  "summary": {
+    "income": "Total Pemasukan",
+    "expense": "Total Pengeluaran",
+    "balance": "Saldo",
+    "topExpense": "Pengeluaran Terbesar",
+    "noData": "Belum ada transaksi periode ini"
+  },
+  "transactions": {
+    "title": "Transaksi",
+    "empty": "Belum ada transaksi",
+    "date": "Tanggal",
+    "description": "Keterangan",
+    "category": "Kategori",
+    "amount": "Jumlah",
+    "type": "Jenis",
+    "income": "Pemasukan",
+    "expense": "Pengeluaran",
+    "edit": "Edit",
+    "delete": "Hapus",
+    "confirmDelete": "Yakin ingin menghapus transaksi ini?",
+    "filterFrom": "Dari",
+    "filterTo": "Sampai"
+  },
+  "accounts": {
+    "title": "Akun",
+    "create": "Buat Akun Baru",
+    "name": "Nama Akun",
+    "type": "Tipe",
+    "personal": "Personal",
+    "group": "Grup/Keluarga",
+    "linkBot": "Hubungkan WhatsApp",
+    "generateCode": "Buat Kode",
+    "codeInstruction": "Kirim pesan ini di WhatsApp:",
+    "codeExpiry": "Kode berlaku 15 menit"
+  },
+  "categories": {
+    "title": "Kategori",
+    "income": "Pemasukan",
+    "expense": "Pengeluaran",
+    "addCustom": "Tambah Kategori",
+    "name": "Nama Kategori",
+    "custom": "Kustom"
+  },
+  "language": { "label": "Bahasa", "id": "Indonesia", "en": "English" },
+  "auth": { "signIn": "Masuk dengan Google", "signOut": "Keluar" },
+  "period": {
+    "thisMonth": "Bulan Ini",
+    "lastMonth": "Bulan Lalu",
+    "thisWeek": "Minggu Ini",
+    "custom": "Kustom"
+  }
+}
