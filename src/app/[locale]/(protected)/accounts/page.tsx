@@ -41,14 +41,14 @@ export default function AccountsPage() {
     <div className="max-w-2xl">
       <h1 className="text-xl font-semibold mb-6">{t('title')}</h1>
 
-      <div className="rounded-xl border border-gray-100 p-5 bg-white mb-6">
+      <div className="rounded-xl border border-white/[0.06] p-5 bg-white/[0.03] mb-6">
         <h2 className="font-medium mb-3">{t('create')}</h2>
         <div className="flex gap-3">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t('name')}
-            className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            className="flex-1 rounded-lg border border-white/[0.1] bg-white/[0.06] text-white placeholder-white/30 px-3 py-2 text-sm"
           />
           <select
             value={type}
@@ -61,7 +61,7 @@ export default function AccountsPage() {
           <button
             onClick={createAccount}
             disabled={creating || !name.trim()}
-            className="rounded-lg bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm font-medium hover:bg-emerald-500 disabled:opacity-40 transition-colors"
           >
             {creating ? '...' : t('create')}
           </button>

@@ -18,34 +18,44 @@ export function SummaryCards({
   topExpenseAmount,
 }: Props) {
   const t = useTranslations('summary');
-
-  const cards = [
-    { label: t('income'), value: formatIDR(income), color: 'text-green-600', bg: 'bg-green-50' },
-    { label: t('expense'), value: formatIDR(expense), color: 'text-red-600', bg: 'bg-red-50' },
-    {
-      label: t('balance'),
-      value: formatIDR(net),
-      color: net >= 0 ? 'text-blue-600' : 'text-red-600',
-      bg: 'bg-blue-50',
-    },
-  ];
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      {cards.map((card) => (
-        <div key={card.label} className={'rounded-xl border border-gray-100 p-5 ' + card.bg}>
-          <p className="text-sm text-gray-500 mb-1">{card.label}</p>
-          <p className={'text-2xl font-semibold ' + card.color}>{card.value}</p>
-        </div>
-      ))}
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+      <Card label={t('income')} value={formatIDR(income)} accent="emerald" />
+      <Card label={t('expense')} value={formatIDR(expense)} accent="red" />
+      <Card label={t('balance')} value={formatIDR(net)} accent={net >= 0 ? 'emerald' : 'red'} />
       {topExpenseCategory && (
-        <div className="md:col-span-3 rounded-xl border border-gray-100 p-4 bg-amber-50">
-          <p className="text-sm text-gray-500">{t('topExpense')}</p>
-          <p className="font-medium text-amber-700">
-            {topExpenseCategory} — {formatIDR(topExpenseAmount ?? 0)}
-          </p>
-        </div>
+        <Card
+          label={t('topExpense')}
+          value={topExpenseCategory}
+          sub={formatIDR(topExpenseAmount ?? 0)}
+          accent="amber"
+        />
       )}
+    </div>
+  );
+}
+
+function Card({
+  label,
+  value,
+  sub,
+  accent,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  accent: string;
+}) {
+  const colors: Record<string, string> = {
+    emerald: 'text-emerald-400',
+    red: 'text-red-400',
+    amber: 'text-amber-400',
+  };
+  return (
+    <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-5 hover:bg-white/[0.05] transition-colors">
+      <p className="text-[11px] font-medium text-white/40 uppercase tracking-wider mb-2">{label}</p>
+      <p className={`text-xl font-semibold ${colors[accent] ?? 'text-white'}`}>{value}</p>
+      {sub && <p className="text-xs text-white/30 mt-1">{sub}</p>}
     </div>
   );
 }

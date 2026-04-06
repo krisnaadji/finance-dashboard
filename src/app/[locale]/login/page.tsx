@@ -1,18 +1,10 @@
 'use client';
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { createClient } from '@/lib/supabase-browser';
 
 export default function LoginPage() {
-  const router = useRouter();
+  const t = useTranslations('auth');
   const supabase = createClient();
-
-  useEffect(() => {
-    // If already logged in, redirect to dashboard
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) router.replace('/dashboard');
-    });
-  }, []);
 
   async function signIn() {
     await supabase.auth.signInWithOAuth({
@@ -22,13 +14,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-10 w-full max-w-sm text-center">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-2">Finance Bot</h1>
-        <p className="text-gray-500 text-sm mb-8">Personal finance via WhatsApp</p>
+    <div className="min-h-screen flex items-center justify-center bg-[#0f0f11]">
+      <div className="bg-white/[0.04] rounded-2xl border border-white/[0.08] p-10 w-full max-w-sm text-center">
+        <h1 className="text-2xl font-semibold text-white mb-2">Finance Bot</h1>
+        <p className="text-white/40 text-sm mb-8">Personal finance via WhatsApp</p>
         <button
           onClick={signIn}
-          className="w-full flex items-center justify-center gap-3 rounded-xl border border-gray-200 px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+          className="w-full flex items-center justify-center gap-3 rounded-xl border border-white/[0.1] bg-white/[0.06] px-5 py-3 text-sm font-medium text-white hover:bg-white/[0.1] transition-all"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -48,7 +40,7 @@ export default function LoginPage() {
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
             />
           </svg>
-          Sign in with Google
+          {t('signIn')}
         </button>
       </div>
     </div>

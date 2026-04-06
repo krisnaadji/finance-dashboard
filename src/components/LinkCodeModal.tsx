@@ -23,14 +23,14 @@ export function LinkCodeModal({ accountId, accountName }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-gray-100 p-5 bg-white">
+    <div className="rounded-xl border border-white/[0.06] p-5 bg-white/[0.03]">
       <h3 className="font-medium mb-3">
         {t('linkBot')} — {accountName}
       </h3>
       <button
         onClick={generate}
         disabled={loading}
-        className="rounded-lg bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+        className="rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm font-medium hover:bg-emerald-500 disabled:opacity-40 transition-colors"
       >
         {loading ? '...' : t('generateCode')}
       </button>

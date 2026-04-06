@@ -10,13 +10,13 @@ export function LanguageSwitcher() {
   const [isPending, startTransition] = useTransition();
 
   function switchLocale(newLocale: string) {
-    // Set a cookie to override browser language detection
+    // Set NEXT_LOCALE cookie — overrides browser Accept-Language header.
+    // Without this, switching to 'id' gets overridden back to 'en'
+    // if browser language is English.
     document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000`;
 
     const segments = pathname.split('/').filter(Boolean);
-    if (segments[0] === 'en' || segments[0] === 'id') {
-      segments.shift();
-    }
+    if (segments[0] === 'en' || segments[0] === 'id') segments.shift();
     const basePath = segments.length > 0 ? '/' + segments.join('/') : '/';
     const newPath = newLocale === 'id' ? basePath : '/en' + basePath;
 
@@ -27,19 +27,17 @@ export function LanguageSwitcher() {
   }
 
   return (
-    <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1">
+    <div className="flex rounded-lg overflow-hidden border border-white/[0.08] bg-white/[0.04]">
       {(['id', 'en'] as const).map((loc) => (
         <button
           key={loc}
           onClick={() => switchLocale(loc)}
           disabled={isPending}
-          className={
-            loc === locale
-              ? 'rounded px-3 py-1 bg-blue-600 text-white text-sm font-medium'
-              : 'rounded px-3 py-1 text-sm text-gray-600 hover:bg-gray-100'
-          }
+          className={`flex-1 py-1.5 text-xs font-medium transition-all duration-150 ${
+            loc === locale ? 'bg-white/[0.12] text-white' : 'text-white/35 hover:text-white/60'
+          }`}
         >
-          {loc === 'id' ? 'Indonesia' : 'English'}
+          {loc === 'id' ? 'ID' : 'EN'}
         </button>
       ))}
     </div>

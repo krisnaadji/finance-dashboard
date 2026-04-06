@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { AccountSwitcher } from '@/components/AccountSwitcher';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { SignOutButton } from '@/components/SignOutButton';
-import Link from 'next/link';
+import { NavLink } from '@/components/NavLink';
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
@@ -19,28 +19,37 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   if (!user) redirect('/login');
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-100 px-6 py-3 flex items-center gap-4">
-        <span className="font-semibold text-gray-900 mr-4">Finance Bot</span>
-        <Link href="/dashboard" className="text-sm text-gray-600 hover:text-gray-900">
-          Dashboard
-        </Link>
-        <Link href="/transactions" className="text-sm text-gray-600 hover:text-gray-900">
-          Transactions
-        </Link>
-        <Link href="/accounts" className="text-sm text-gray-600 hover:text-gray-900">
-          Accounts
-        </Link>
-        <Link href="/categories" className="text-sm text-gray-600 hover:text-gray-900">
-          Categories
-        </Link>
-        <div className="ml-auto flex items-center gap-3">
+    <div className="min-h-screen bg-[#0f0f11] text-white flex">
+      {/* Sidebar */}
+      <aside className="w-56 shrink-0 border-r border-white/[0.06] flex flex-col">
+        {/* Logo */}
+        <div className="px-5 py-5 border-b border-white/[0.06]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-xs font-bold">
+              F
+            </div>
+            <span className="font-semibold text-sm tracking-tight">FinanceBot</span>
+          </div>
+        </div>
+        {/* Account Switcher */}
+        <div className="px-3 py-3 border-b border-white/[0.06]">
           <AccountSwitcher />
+        </div>
+        {/* Nav Links */}
+        <nav className="flex-1 px-3 py-3 space-y-0.5">
+          <NavLink href="/dashboard" icon="▦" label="Dashboard" />
+          <NavLink href="/transactions" icon="↕" label="Transactions" />
+          <NavLink href="/accounts" icon="◎" label="Accounts" />
+          <NavLink href="/categories" icon="⊞" label="Categories" />
+        </nav>
+        {/* Footer */}
+        <div className="px-3 py-3 border-t border-white/[0.06] space-y-0.5">
           <LanguageSwitcher />
           <SignOutButton />
         </div>
-      </nav>
-      <main className="max-w-6xl mx-auto px-6 py-8">{children}</main>
+      </aside>
+      {/* Main */}
+      <main className="flex-1 min-w-0 p-8 overflow-auto">{children}</main>
     </div>
   );
 }

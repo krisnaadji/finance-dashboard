@@ -50,7 +50,7 @@ export default function CategoriesPage() {
     <div className="max-w-2xl">
       <h1 className="text-xl font-semibold mb-6">{t('title')}</h1>
 
-      <div className="rounded-xl border border-gray-100 p-5 bg-white mb-6">
+      <div className="rounded-xl border border-white/[0.06] p-5 bg-white/[0.03] mb-6">
         <h2 className="font-medium mb-3">{t('addCustom')}</h2>
         <div className="flex gap-3">
           <input
@@ -70,7 +70,7 @@ export default function CategoriesPage() {
           <button
             onClick={addCategory}
             disabled={adding || !name.trim()}
-            className="rounded-lg bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm font-medium hover:bg-emerald-500 disabled:opacity-40 transition-colors"
           >
             {adding ? '...' : t('addCustom')}
           </button>
@@ -78,24 +78,24 @@ export default function CategoriesPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-xl border border-gray-100 p-5 bg-white">
-          <h3 className="font-medium text-green-700 mb-3">{t('income')}</h3>
+        <div className="rounded-xl border border-white/[0.06] p-5 bg-white/[0.03]">
+          <h3 className="font-medium text-emerald-400 mb-3">{t('income')}</h3>
           <ul className="space-y-1">
             {income.map((c) => (
-              <li key={c.id} className="text-sm text-gray-700 flex items-center gap-2">
+              <li key={c.id} className="text-sm text-white/70 flex items-center gap-2">
                 <span>{c.name}</span>
-                {c.is_custom && <span className="text-xs text-blue-500">{t('custom')}</span>}
+                {c.is_custom && <span className="text-xs text-emerald-400">{t('custom')}</span>}
               </li>
             ))}
           </ul>
         </div>
-        <div className="rounded-xl border border-gray-100 p-5 bg-white">
-          <h3 className="font-medium text-red-700 mb-3">{t('expense')}</h3>
+        <div className="rounded-xl border border-white/[0.06] p-5 bg-white/[0.03]">
+          <h3 className="font-medium text-red-400 mb-3">{t('expense')}</h3>
           <ul className="space-y-1">
             {expense.map((c) => (
-              <li key={c.id} className="text-sm text-gray-700 flex items-center gap-2">
+              <li key={c.id} className="text-sm text-white/70 flex items-center gap-2">
                 <span>{c.name}</span>
-                {c.is_custom && <span className="text-xs text-blue-500">{t('custom')}</span>}
+                {c.is_custom && <span className="text-xs text-emerald-400">{t('custom')}</span>}
               </li>
             ))}
           </ul>
