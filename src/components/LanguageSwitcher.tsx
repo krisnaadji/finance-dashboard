@@ -13,7 +13,9 @@ export function LanguageSwitcher() {
     // Set NEXT_LOCALE cookie — overrides browser Accept-Language header.
     // Without this, switching to 'id' gets overridden back to 'en'
     // if browser language is English.
-    document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000`;
+    // SameSite=Lax and Secure needed for cookie to work on HTTPS (production)
+    const isSecure = window.location.protocol === 'https:';
+    document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax${isSecure ? ';Secure' : ''}`;
 
     const segments = pathname.split('/').filter(Boolean);
     if (segments[0] === 'en' || segments[0] === 'id') segments.shift();
