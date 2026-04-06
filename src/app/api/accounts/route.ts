@@ -3,63 +3,54 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
-// GET: list accounts for the signed-in user
-export async function GET() {
+async function getAuthUser() {
   const cookieStore = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-        },
-      },
-    },
+    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } },
   );
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  return user;
+}
+
+// GET: list accounts for the signed-in user
+// NOTE: Supabase JS client does not support raw SQL subqueries in .or()
+// Split into two queries and merge instead.
+export async function GET() {
+  const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data } = await admin
-    .from('accounts')
-    .select('*')
-    .or(
-      'owner_id.eq.' +
-        user.id +
-        ',id.in.(select account_id from members where user_id=' +
-        user.id +
-        ')',
-    );
 
-  return NextResponse.json(data ?? []);
+  // 1. Accounts owned by user
+  const { data: owned } = await admin.from('accounts').select('*').eq('owner_id', user.id);
+
+  // 2. Accounts user is a member of (via members table)
+  const { data: memberships } = await admin
+    .from('members')
+    .select('account_id')
+    .eq('user_id', user.id);
+
+  const memberIds = (memberships ?? []).map((m) => m.account_id);
+  let memberAccounts: Record<string, unknown>[] = [];
+  if (memberIds.length > 0) {
+    const { data } = await admin.from('accounts').select('*').in('id', memberIds);
+    memberAccounts = data ?? [];
+  }
+
+  // Merge and deduplicate by id
+  const all = [...(owned ?? []), ...memberAccounts];
+  const unique = all.filter((a, i) => all.findIndex((b) => b.id === a.id) === i);
+
+  return NextResponse.json(unique);
 }
 
 // POST: create a new account and seed default categories
 export async function POST(req: Request) {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-        },
-      },
-    },
-  );
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { name, type } = await req.json();
