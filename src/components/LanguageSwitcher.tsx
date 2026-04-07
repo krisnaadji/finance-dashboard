@@ -22,18 +22,26 @@ export function LanguageSwitcher() {
     });
   }
 
+  // onTouchEnd used instead of onClick on mobile — prevents 300ms delay
+  // and ensures taps register even if the touch briefly moves.
+  function handleInteraction(e: React.MouseEvent | React.TouchEvent, loc: string) {
+    e.preventDefault();
+    switchLocale(loc);
+  }
+
   return (
     <div className="flex rounded-lg overflow-hidden border border-white/[0.08] bg-white/[0.04] w-full">
       {(['id', 'en'] as const).map((loc) => (
         <button
           key={loc}
           type="button"
-          onClick={() => switchLocale(loc)}
           disabled={isPending}
-          style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
-          className={`flex-1 py-2 md:py-1.5 text-sm md:text-xs font-medium cursor-pointer select-none transition-all duration-150 ${
-            loc === locale ? 'bg-white/[0.12] text-white' : 'text-white/35 hover:text-white/60'
-          }`}
+          onClick={(e) => handleInteraction(e, loc)}
+          onTouchEnd={(e) => handleInteraction(e, loc)}
+          className={`flex-1 py-2 md:py-1.5 text-sm md:text-xs font-medium
+            cursor-pointer select-none transition-all duration-150 ${
+              loc === locale ? 'bg-white/[0.12] text-white' : 'text-white/35 hover:text-white/60'
+            }`}
         >
           {loc === 'id' ? 'ID' : 'EN'}
         </button>
