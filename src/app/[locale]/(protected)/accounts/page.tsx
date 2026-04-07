@@ -1,7 +1,4 @@
 'use client';
-
-export const dynamic = 'force-dynamic'; // always re-fetch, never serve stale cache
-
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { LinkCodeModal } from '@/components/LinkCodeModal';
@@ -19,11 +16,19 @@ export default function AccountsPage() {
   const [name, setName] = useState('');
   const [type, setType] = useState<'personal' | 'group'>('personal');
   const [creating, setCreating] = useState(false);
+  const now = new Date().toLocaleDateString('id-ID', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 
   useEffect(() => {
     fetch('/api/accounts')
       .then((r) => r.json())
-      .then(setAccounts);
+      .then((data) => {
+        if (Array.isArray(data)) setAccounts(data);
+      });
   }, []);
 
   async function createAccount() {
@@ -42,11 +47,14 @@ export default function AccountsPage() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-xl font-semibold mb-6">{t('title')}</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-1">
+        <h1 className="text-xl font-semibold text-white">{t('title')}</h1>
+        <p className="text-xs text-white/40">{now}</p>
+      </div>
 
       <div className="rounded-xl border border-white/[0.06] p-5 bg-white/[0.03] mb-6">
-        <h2 className="font-medium mb-3">{t('create')}</h2>
-        <div className="flex gap-3">
+        <h2 className="font-medium text-white mb-3">{t('create')}</h2>
+        <div className="flex flex-col sm:flex-row gap-3">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -56,15 +64,19 @@ export default function AccountsPage() {
           <select
             value={type}
             onChange={(e) => setType(e.target.value as any)}
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            className="rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-2 text-sm"
           >
-            <option value="personal">{t('personal')}</option>
-            <option value="group">{t('group')}</option>
+            <option value="personal" className="bg-[#1a1a1f]">
+              {t('personal')}
+            </option>
+            <option value="group" className="bg-[#1a1a1f]">
+              {t('group')}
+            </option>
           </select>
           <button
             onClick={createAccount}
             disabled={creating || !name.trim()}
-            className="rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm font-medium hover:bg-emerald-500 disabled:opacity-40 transition-colors"
+            className="rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm font-medium hover:bg-emerald-500 disabled:opacity-40 transition-colors whitespace-nowrap"
           >
             {creating ? '...' : t('create')}
           </button>
@@ -73,13 +85,15 @@ export default function AccountsPage() {
 
       <div className="space-y-4">
         {accounts.map((acc) => (
-          <div key={acc.id}>
-            <div className="flex items-center gap-3 mb-3">
-              <span className="font-medium">{acc.name}</span>
-              <span className="text-xs bg-gray-100 text-gray-500 rounded-full px-2 py-0.5">
+          <div key={acc.id} className="rounded-xl border border-white/[0.06] p-5 bg-white/[0.03]">
+            <div className="flex flex-wrap items-center gap-3 mb-3">
+              <span className="font-medium text-white">{acc.name}</span>
+              <span className="text-xs bg-white/[0.08] text-white/50 rounded-full px-2 py-0.5">
                 {acc.type}
               </span>
-              {acc.wa_chat_id && <span className="text-xs text-green-600">✓ WhatsApp linked</span>}
+              {acc.wa_chat_id && (
+                <span className="text-xs text-emerald-400">✓ WhatsApp linked</span>
+              )}
             </div>
             <LinkCodeModal accountId={acc.id} accountName={acc.name} />
           </div>

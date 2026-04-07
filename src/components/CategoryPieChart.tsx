@@ -27,7 +27,7 @@ export function CategoryPieChart({ byCategory }: Props) {
   if (!data.length) return null;
 
   return (
-    <div className="rounded-xl border border-white/[0.06] p-5 bg-white/[0.03]">
+    <div className="rounded-xl border border-white/[0.06] p-5 bg-white/[0.03] overflow-hidden">
       <h3 className="text-sm font-medium text-white/60 mb-4">{t('expense')} by Category</h3>
       <ResponsiveContainer width="100%" height={240}>
         <PieChart>
@@ -37,9 +37,10 @@ export function CategoryPieChart({ byCategory }: Props) {
             nameKey="name"
             cx="50%"
             cy="50%"
-            outerRadius={80}
+            outerRadius={75}
             label={({ name, percent }) => name + ' ' + ((percent ?? 0) * 100).toFixed(0) + '%'}
             labelLine={false}
+            fill="#8884d8"
           >
             {data.map((_, i) => (
               <Cell key={i} fill={COLORS[i % COLORS.length]} />

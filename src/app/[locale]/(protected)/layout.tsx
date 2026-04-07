@@ -57,7 +57,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
             </div>
             <span className="font-semibold text-sm">FinanceBot</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="w-28">
             <LanguageSwitcher />
             <SignOutButton />
           </div>

@@ -7,6 +7,7 @@
     "signOut": "Sign out"
   },
   "summary": {
+    "title": "Dashboard",
     "income": "Total Income",
     "expense": "Total Expenses",
     "balance": "Balance",

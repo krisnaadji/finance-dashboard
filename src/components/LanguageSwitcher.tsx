@@ -15,7 +15,7 @@ export function LanguageSwitcher() {
     // if browser language is English.
     // SameSite=Lax and Secure needed for cookie to work on HTTPS (production)
     const isSecure = window.location.protocol === 'https:';
-    document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax${isSecure ? ';Secure' : ''}`;
+    document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax;Secure`;
 
     const segments = pathname.split('/').filter(Boolean);
     if (segments[0] === 'en' || segments[0] === 'id') segments.shift();
