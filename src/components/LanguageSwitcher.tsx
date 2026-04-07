@@ -8,12 +8,19 @@ export function LanguageSwitcher() {
 
   function switchLocale(newLocale: string) {
     if (newLocale === locale) return;
-    // Strip any existing locale prefix
+
+    // 1. Set cookie so next-intl middleware respects the chosen locale
+    //    even when path has no prefix (e.g. /dashboard = Indonesian default)
+    const secure = window.location.protocol === 'https:' ? ';Secure' : '';
+    document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax${secure}`;
+
+    // 2. Build the new path with correct locale prefix
     const segments = pathname.split('/').filter(Boolean);
     if (segments[0] === 'en' || segments[0] === 'id') segments.shift();
-    const base = '/' + segments.join('/');
-    const newPath = newLocale === 'id' ? base || '/' : '/en' + (base || '/');
-    // Hard navigation — guaranteed to trigger next-intl middleware on all devices
+    const base = segments.length > 0 ? '/' + segments.join('/') : '/';
+    const newPath = newLocale === 'id' ? base : '/en' + base;
+
+    // 3. Hard navigate — ensures middleware runs and reads the new cookie
     window.location.assign(newPath);
   }
 
