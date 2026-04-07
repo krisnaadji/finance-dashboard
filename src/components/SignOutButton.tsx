@@ -15,10 +15,13 @@ export function SignOutButton() {
   return (
     <button
       onClick={signOut}
-      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-all duration-150 text-left"
+      type="button"
+      className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-sm text-white/40
+        hover:text-white/70 hover:bg-white/[0.06] active:bg-white/[0.1]
+        transition-all duration-150 whitespace-nowrap"
     >
       <span className="text-xs">⎋</span>
-      Sign out
+      <span className="hidden sm:inline">Sign out</span>
     </button>
   );
 }

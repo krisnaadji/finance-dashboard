@@ -6,6 +6,10 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { SignOutButton } from '@/components/SignOutButton';
 import { NavLink } from '@/components/NavLink';
 
+// Must come after imports. Tells Next.js to always render at request time
+// so auth cookies are read fresh on every visit.
+export const dynamic = 'force-dynamic';
+
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
   const supabase = createServerClient(
@@ -50,14 +54,15 @@ export default async function ProtectedLayout({ children }: { children: React.Re
       </aside>
       {/* Mobile top bar — visible on mobile only */}
       <div className="flex flex-col flex-1 min-w-0">
-        <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+        <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-white/[0.06] relative z-10">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-md bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-xs font-bold">
               F
             </div>
             <span className="font-semibold text-sm">FinanceBot</span>
           </div>
-          <div className="w-28">
+          {/* Language + sign out: horizontal row, z-index ensures clickability */}
+          <div className="flex items-center gap-2">
             <LanguageSwitcher />
             <SignOutButton />
           </div>
