@@ -10,7 +10,10 @@ interface Props {
 
 export function NavLink({ href, icon, label }: Props) {
   const pathname = usePathname();
-  const isActive = pathname.startsWith(href);
+  // Strip locale prefix (/en/dashboard → /dashboard) before comparing
+  // so active state works correctly in both ID and EN locales
+  const strippedPath = pathname.replace(new RegExp('^/(en|id)(/|$)'), '$2') || '/';
+  const isActive = strippedPath.startsWith(href);
 
   return (
     <Link
