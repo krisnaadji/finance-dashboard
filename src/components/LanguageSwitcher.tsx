@@ -1,32 +1,20 @@
 'use client';
 import { useLocale } from 'next-intl';
-import { usePathname, useRouter } from 'next/navigation';
-import { useTransition } from 'react';
+import { usePathname } from 'next/navigation';
 
 export function LanguageSwitcher() {
   const locale = useLocale();
-  const router = useRouter();
   const pathname = usePathname();
-  const [isPending, startTransition] = useTransition();
 
   function switchLocale(newLocale: string) {
-    const isSecure = window.location.protocol === 'https:';
-    document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax${isSecure ? ';Secure' : ''}`;
+    if (newLocale === locale) return;
+    // Strip any existing locale prefix
     const segments = pathname.split('/').filter(Boolean);
     if (segments[0] === 'en' || segments[0] === 'id') segments.shift();
-    const basePath = segments.length > 0 ? '/' + segments.join('/') : '/';
-    const newPath = newLocale === 'id' ? basePath : '/en' + basePath;
-    startTransition(() => {
-      router.push(newPath);
-      router.refresh();
-    });
-  }
-
-  // onTouchEnd used instead of onClick on mobile — prevents 300ms delay
-  // and ensures taps register even if the touch briefly moves.
-  function handleInteraction(e: React.MouseEvent | React.TouchEvent, loc: string) {
-    e.preventDefault();
-    switchLocale(loc);
+    const base = '/' + segments.join('/');
+    const newPath = newLocale === 'id' ? base || '/' : '/en' + (base || '/');
+    // Hard navigation — guaranteed to trigger next-intl middleware on all devices
+    window.location.assign(newPath);
   }
 
   return (
@@ -35,9 +23,11 @@ export function LanguageSwitcher() {
         <button
           key={loc}
           type="button"
-          disabled={isPending}
-          onClick={(e) => handleInteraction(e, loc)}
-          onTouchEnd={(e) => handleInteraction(e, loc)}
+          onClick={() => switchLocale(loc)}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            switchLocale(loc);
+          }}
           className={`flex-1 py-2 md:py-1.5 text-sm md:text-xs font-medium
             cursor-pointer select-none transition-all duration-150 ${
               loc === locale ? 'bg-white/[0.12] text-white' : 'text-white/35 hover:text-white/60'
