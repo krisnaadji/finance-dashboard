@@ -71,6 +71,9 @@ export default function TransactionsPage() {
         <TransactionTable
           transactions={txns}
           onDelete={(id) => setTxns((prev) => prev.filter((t) => t.id !== id))}
+          onUpdate={(updated) =>
+            setTxns((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
+          }
         />
       </div>
     </div>
