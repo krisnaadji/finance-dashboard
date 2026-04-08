@@ -115,25 +115,13 @@ export function TransactionTable({ transactions, onDelete, onUpdate }: Props) {
           value={editForm.amount}
           onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))}
         />
-        {mobile ? (
-          <div className="w-full overflow-hidden">
-            <input
-              className={inp}
-              type="date"
-              style={{ colorScheme: 'dark' }}
-              value={editForm.date}
-              onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
-            />
-          </div>
-        ) : (
-          <input
-            className={inp + ' w-36'}
-            type="date"
-            style={{ colorScheme: 'dark' }}
-            value={editForm.date}
-            onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
-          />
-        )}
+        <input
+          className={inp + (mobile ? '' : ' w-36')}
+          type="date"
+          style={{ colorScheme: 'dark', maxWidth: '100%' }}
+          value={editForm.date}
+          onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
+        />
         <select
           className={inp + (mobile ? '' : ' w-28')}
           value={editForm.type}
