@@ -91,13 +91,17 @@ export function TransactionTable({ transactions, onDelete, onUpdate }: Props) {
     return <p className="text-center text-white/30 py-12 text-sm">{t('empty')}</p>;
 
   const inp =
-    'bg-white/[0.06] border border-white/[0.1] text-white rounded-lg px-2 py-1.5 text-sm w-full';
+    'bg-white/[0.06] border border-white/[0.1] text-white rounded-lg px-2 py-1.5 text-sm w-full box-border';
 
   // Shared edit form JSX used in both mobile and desktop
   function EditForm({ id, mobile }: { id: string; mobile?: boolean }) {
     const filteredCats = cats.filter((c) => c.type === editForm.type);
     return (
-      <div className={mobile ? 'space-y-2' : 'flex flex-wrap gap-2 items-center'}>
+      <div
+        className={
+          mobile ? 'space-y-2 w-full overflow-hidden' : 'flex flex-wrap gap-2 items-center'
+        }
+      >
         <input
           className={inp + (mobile ? '' : ' flex-1 min-w-40')}
           placeholder="Description"
@@ -111,13 +115,25 @@ export function TransactionTable({ transactions, onDelete, onUpdate }: Props) {
           value={editForm.amount}
           onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))}
         />
-        <input
-          className={inp + (mobile ? ' w-full' : ' w-36')}
-          type="date"
-          style={{ colorScheme: 'dark' }}
-          value={editForm.date}
-          onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
-        />
+        {mobile ? (
+          <div className="w-full overflow-hidden">
+            <input
+              className={inp}
+              type="date"
+              style={{ colorScheme: 'dark' }}
+              value={editForm.date}
+              onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
+            />
+          </div>
+        ) : (
+          <input
+            className={inp + ' w-36'}
+            type="date"
+            style={{ colorScheme: 'dark' }}
+            value={editForm.date}
+            onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
+          />
+        )}
         <select
           className={inp + (mobile ? '' : ' w-28')}
           value={editForm.type}
