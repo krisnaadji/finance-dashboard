@@ -114,6 +114,7 @@ export function TransactionTable({ transactions, onDelete, onUpdate }: Props) {
         <input
           className={inp + (mobile ? '' : ' w-36')}
           type="date"
+          style={{ colorScheme: 'dark' }}
           value={editForm.date}
           onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
         />
