@@ -11,6 +11,7 @@ export async function GET(req: Request) {
     .from('categories')
     .select('*')
     .eq('account_id', accountId)
+    .eq('is_active', true)
     .order('type')
     .order('sort_order');
   return NextResponse.json(data ?? []);
