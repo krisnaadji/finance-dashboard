@@ -19,6 +19,9 @@ export default function CategoriesPage() {
   const [name, setName] = useState('');
   const [type, setType] = useState<'income' | 'expense'>('expense');
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     if (!accountId) return;
@@ -41,6 +44,25 @@ export default function CategoriesPage() {
     if (data.id) setCats((prev) => [...prev, data]);
     setName('');
     setAdding(false);
+  }
+
+  async function saveEdit(id: string) {
+    const res = await fetch('/api/categories', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name: editName.trim() }),
+    });
+    const data = await res.json();
+    if (data.id) setCats((prev) => prev.map((c) => (c.id === id ? { ...c, name: data.name } : c)));
+    setEditingId(null);
+  }
+
+  async function deleteCategory(id: string) {
+    if (!confirm('Delete this category?')) return;
+    setDeleting(id);
+    await fetch('/api/categories?id=' + id, { method: 'DELETE' });
+    setCats((prev) => prev.filter((c) => c.id !== id));
+    setDeleting(null);
   }
 
   const income = cats.filter((c) => c.type === 'income');
@@ -97,14 +119,64 @@ export default function CategoriesPage() {
           {income.length === 0 && <p className="text-white/30 text-sm">No categories yet</p>}
           <ul className="space-y-2">
             {income.map((c) => (
-              <li key={c.id} className="flex items-center justify-between">
-                <span className="text-sm text-white/80">{c.name}</span>
-                {c.is_custom ? (
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-400 rounded px-1.5 py-0.5">
-                    Custom
-                  </span>
+              <li key={c.id} className="flex items-center justify-between gap-2">
+                {editingId === c.id ? (
+                  // Edit mode
+                  <div className="flex gap-2 flex-1">
+                    <input
+                      className="flex-1 bg-white/[0.06] border border-white/[0.1] text-white rounded-lg px-2 py-1 text-sm"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && saveEdit(c.id)}
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => saveEdit(c.id)}
+                      className="text-xs bg-emerald-600 text-white px-2 py-1 rounded-lg"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="text-xs text-white/40 px-2 py-1"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 ) : (
-                  <span className="text-[10px] text-white/20">Default</span>
+                  // View mode
+                  <>
+                    <span className="text-sm text-white/80">{c.name}</span>
+                    <div className="flex items-center gap-2">
+                      {c.is_custom ? (
+                        <span className="text-[10px] bg-emerald-500/20 text-emerald-400 rounded px-1.5 py-0.5">
+                          Custom
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-white/20">Default</span>
+                      )}
+                      {c.is_custom && (
+                        <button
+                          onClick={() => {
+                            setEditingId(c.id);
+                            setEditName(c.name);
+                          }}
+                          className="text-xs text-white/30 hover:text-white/60"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {c.is_custom && (
+                        <button
+                          onClick={() => deleteCategory(c.id)}
+                          disabled={deleting === c.id}
+                          className="text-xs text-red-400/60 hover:text-red-400 disabled:opacity-40"
+                        >
+                          {deleting === c.id ? '...' : 'Delete'}
+                        </button>
+                      )}
+                    </div>
+                  </>
                 )}
               </li>
             ))}
@@ -115,14 +187,64 @@ export default function CategoriesPage() {
           {expense.length === 0 && <p className="text-white/30 text-sm">No categories yet</p>}
           <ul className="space-y-2">
             {expense.map((c) => (
-              <li key={c.id} className="flex items-center justify-between">
-                <span className="text-sm text-white/80">{c.name}</span>
-                {c.is_custom ? (
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-400 rounded px-1.5 py-0.5">
-                    Custom
-                  </span>
+              <li key={c.id} className="flex items-center justify-between gap-2">
+                {editingId === c.id ? (
+                  // Edit mode
+                  <div className="flex gap-2 flex-1">
+                    <input
+                      className="flex-1 bg-white/[0.06] border border-white/[0.1] text-white rounded-lg px-2 py-1 text-sm"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && saveEdit(c.id)}
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => saveEdit(c.id)}
+                      className="text-xs bg-emerald-600 text-white px-2 py-1 rounded-lg"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="text-xs text-white/40 px-2 py-1"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 ) : (
-                  <span className="text-[10px] text-white/20">Default</span>
+                  // View mode
+                  <>
+                    <span className="text-sm text-white/80">{c.name}</span>
+                    <div className="flex items-center gap-2">
+                      {c.is_custom ? (
+                        <span className="text-[10px] bg-emerald-500/20 text-emerald-400 rounded px-1.5 py-0.5">
+                          Custom
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-white/20">Default</span>
+                      )}
+                      {c.is_custom && (
+                        <button
+                          onClick={() => {
+                            setEditingId(c.id);
+                            setEditName(c.name);
+                          }}
+                          className="text-xs text-white/30 hover:text-white/60"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {c.is_custom && (
+                        <button
+                          onClick={() => deleteCategory(c.id)}
+                          disabled={deleting === c.id}
+                          className="text-xs text-red-400/60 hover:text-red-400 disabled:opacity-40"
+                        >
+                          {deleting === c.id ? '...' : 'Delete'}
+                        </button>
+                      )}
+                    </div>
+                  </>
                 )}
               </li>
             ))}
