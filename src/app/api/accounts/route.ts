@@ -26,7 +26,11 @@ export async function GET() {
   const admin = createAdminClient();
 
   // 1. Accounts owned by user
-  const { data: owned } = await admin.from('accounts').select('*').eq('owner_id', user.id);
+  const { data: owned } = await admin
+    .from('accounts')
+    .select('*')
+    .eq('owner_id', user.id)
+    .eq('is_active', true);
 
   // 2. Accounts user is a member of (via members table)
   const { data: memberships } = await admin
@@ -37,7 +41,11 @@ export async function GET() {
   const memberIds = (memberships ?? []).map((m) => m.account_id);
   let memberAccounts: Record<string, unknown>[] = [];
   if (memberIds.length > 0) {
-    const { data } = await admin.from('accounts').select('*').in('id', memberIds);
+    const { data } = await admin
+      .from('accounts')
+      .select('*')
+      .in('id', memberIds)
+      .eq('is_active', true);
     memberAccounts = data ?? [];
   }
 
@@ -75,4 +83,49 @@ export async function POST(req: Request) {
   });
 
   return NextResponse.json(account);
+}
+
+// PATCH: edit account name and type
+export async function PATCH(req: Request) {
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { id, name, type } = await req.json();
+  if (!id || !name?.trim())
+    return NextResponse.json({ error: 'Missing id or name' }, { status: 400 });
+
+  const admin = createAdminClient();
+
+  // Only owner can edit
+  const { data, error } = await admin
+    .from('accounts')
+    .update({ name: name.trim(), type })
+    .eq('id', id)
+    .eq('owner_id', user.id)
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
+}
+
+// DELETE: soft delete account
+export async function DELETE(req: Request) {
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+
+  const admin = createAdminClient();
+
+  const { error } = await admin
+    .from('accounts')
+    .update({ is_active: false })
+    .eq('id', id)
+    .eq('owner_id', user.id);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
 }

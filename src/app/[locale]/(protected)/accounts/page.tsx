@@ -6,7 +6,7 @@ import { LinkCodeModal } from '@/components/LinkCodeModal';
 interface Account {
   id: string;
   name: string;
-  type: string;
+  type: 'personal' | 'group';
   wa_chat_id: string | null;
 }
 
@@ -16,6 +16,10 @@ export default function AccountsPage() {
   const [name, setName] = useState('');
   const [type, setType] = useState<'personal' | 'group'>('personal');
   const [creating, setCreating] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editType, setEditType] = useState<'personal' | 'group'>('personal');
+  const [deleting, setDeleting] = useState<string | null>(null);
   const now = new Date().toLocaleDateString('id-ID', {
     weekday: 'long',
     year: 'numeric',
@@ -43,6 +47,25 @@ export default function AccountsPage() {
     setAccounts((prev) => [...prev, data]);
     setName('');
     setCreating(false);
+  }
+
+  async function saveEdit(id: string) {
+    const res = await fetch('/api/accounts', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name: editName.trim(), type: editType }),
+    });
+    const data = await res.json();
+    if (data.id) setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, ...data } : a)));
+    setEditingId(null);
+  }
+
+  async function deleteAccount(id: string) {
+    if (!confirm('Delete this account? Transactions will be preserved.')) return;
+    setDeleting(id);
+    await fetch('/api/accounts?id=' + id, { method: 'DELETE' });
+    setAccounts((prev) => prev.filter((a) => a.id !== id));
+    setDeleting(null);
   }
 
   return (
@@ -86,16 +109,75 @@ export default function AccountsPage() {
       <div className="space-y-4">
         {accounts.map((acc) => (
           <div key={acc.id} className="rounded-xl border border-white/[0.06] p-5 bg-white/[0.03]">
-            <div className="flex flex-wrap items-center gap-3 mb-3">
-              <span className="font-medium text-white">{acc.name}</span>
-              <span className="text-xs bg-white/[0.08] text-white/50 rounded-full px-2 py-0.5">
-                {acc.type}
-              </span>
-              {acc.wa_chat_id && (
-                <span className="text-xs text-emerald-400">✓ WhatsApp linked</span>
-              )}
-            </div>
-            <LinkCodeModal accountId={acc.id} accountName={acc.name} />
+            {editingId === acc.id ? (
+              // Edit mode
+              <div className="space-y-3">
+                <input
+                  className="w-full bg-white/[0.06] border border-white/[0.1] text-white rounded-lg px-3 py-2 text-sm"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                />
+                <select
+                  value={editType}
+                  onChange={(e) => setEditType(e.target.value as 'personal' | 'group')}
+                  className="w-full bg-white/[0.06] border border-white/[0.1] text-white rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="personal" className="bg-[#1a1a1f]">
+                    Personal
+                  </option>
+                  <option value="group" className="bg-[#1a1a1f]">
+                    Group
+                  </option>
+                </select>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => saveEdit(acc.id)}
+                    className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-sm"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setEditingId(null)}
+                    className="rounded-lg bg-white/[0.06] text-white/60 px-3 py-1.5 text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // View mode
+              <>
+                <div className="flex flex-wrap items-center gap-3 mb-3">
+                  <span className="font-medium text-white">{acc.name}</span>
+                  <span className="text-xs bg-white/[0.08] text-white/50 rounded-full px-2 py-0.5">
+                    {acc.type}
+                  </span>
+                  {acc.wa_chat_id && (
+                    <span className="text-xs text-emerald-400">✓ WhatsApp linked</span>
+                  )}
+                  <div className="ml-auto flex gap-3">
+                    <button
+                      onClick={() => {
+                        setEditingId(acc.id);
+                        setEditName(acc.name);
+                        setEditType(acc.type);
+                      }}
+                      className="text-xs text-white/30 hover:text-white/60"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => deleteAccount(acc.id)}
+                      disabled={deleting === acc.id}
+                      className="text-xs text-red-400/60 hover:text-red-400 disabled:opacity-40"
+                    >
+                      {deleting === acc.id ? '...' : 'Delete'}
+                    </button>
+                  </div>
+                </div>
+                <LinkCodeModal accountId={acc.id} accountName={acc.name} />
+              </>
+            )}
           </div>
         ))}
       </div>
