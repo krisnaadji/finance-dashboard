@@ -59,7 +59,7 @@ Browser
         └── PostgreSQL (RLS enforced)
 ```
 
-> See [README-database.md](../README-database.md) for full schema, table definitions, and ER diagram.
+> See [README-database.md](https://github.com/krisnaadji/finance-dashboard/blob/main/README-database.md) for full schema, table definitions, and ER diagram.
 
 ---
 
