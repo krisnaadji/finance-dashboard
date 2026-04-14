@@ -81,11 +81,20 @@ export async function POST(req: Request) {
   // Seed default categories via the SQL function we created in Phase 1
   await admin.rpc('seed_categories', { p_account_id: account.id });
 
+  const { data: existingMember } = await admin
+    .from('members')
+    .select('display_name')
+    .eq('user_id', user.id)
+    .not('display_name', 'is', null)
+    .limit(1)
+    .single();
+
   // Add creator as owner member
   await admin.from('members').insert({
     account_id: account.id,
     user_id: user.id,
     role: 'owner',
+    display_name: existingMember?.display_name ?? user.user_metadata?.full_name ?? null,
   });
 
   return NextResponse.json(account);
@@ -133,5 +142,8 @@ export async function DELETE(req: Request) {
     .eq('owner_id', user.id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await admin.from('members').delete().eq('account_id', id);
+
   return NextResponse.json({ ok: true });
 }

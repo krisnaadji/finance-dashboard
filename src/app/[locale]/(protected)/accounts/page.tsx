@@ -4,6 +4,13 @@ import { useTranslations } from 'next-intl';
 import { LinkCodeModal } from '@/components/LinkCodeModal';
 import { useAccountRole, refreshAccountSwitcher } from '@/components/AccountSwitcher';
 
+interface Member {
+  id: string;
+  display_name: string | null;
+  wa_phone: string | null;
+  role: string;
+}
+
 interface Account {
   id: string;
   name: string;
@@ -31,6 +38,7 @@ export default function AccountsPage() {
   const [displayName, setDisplayName] = useState('');
   const [savingName, setSavingName] = useState(false);
   const [nameSaved, setNameSaved] = useState(false);
+  const [members, setMembers] = useState<Record<string, Member[]>>({});
 
   const now = new Date().toLocaleDateString('id-ID', {
     weekday: 'long',
@@ -43,7 +51,12 @@ export default function AccountsPage() {
     fetch('/api/accounts')
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) setAccounts(data);
+        if (Array.isArray(data)) {
+          setAccounts(data);
+          data
+            .filter((a: Account) => a.type === 'group')
+            .forEach((a: Account) => loadMembers(a.id));
+        }
       });
 
     // Prefill display name from Google profile
@@ -54,6 +67,12 @@ export default function AccountsPage() {
       });
   }, []);
 
+  async function loadMembers(accountId: string) {
+    const res = await fetch('/api/accounts/' + accountId + '/members', { credentials: 'include' });
+    const data = await res.json();
+    if (Array.isArray(data)) setMembers((prev) => ({ ...prev, [accountId]: data }));
+  }
+
   async function createAccount() {
     if (!name.trim()) return;
     setCreating(true);
@@ -63,10 +82,12 @@ export default function AccountsPage() {
       body: JSON.stringify({ name: name.trim(), type }),
     });
     const data = await res.json();
-    setAccounts((prev) => [...prev, { ...data, role: 'owner'}]);
+    const newAcc = { ...data, role: 'owner' };
+    setAccounts((prev) => [...prev, newAcc]);
     setName('');
     setCreating(false);
     refreshAccountSwitcher();
+    if (newAcc.type === 'group') loadMembers(newAcc.id);
   }
 
   async function saveEdit(id: string) {
@@ -252,29 +273,59 @@ export default function AccountsPage() {
                   )}
                 </div>
 
-                {acc.role === 'owner' && <LinkCodeModal accountId={acc.id} accountName={acc.name} />}
+                {acc.role === 'owner' && (
+                  <LinkCodeModal accountId={acc.id} accountName={acc.name} />
+                )}
 
-                {acc.role === 'owner' && acc.type === 'group' && (
+                {acc.type === 'group' && (
                   <div className="mt-3 pt-3 border-t border-white/[0.06]">
-                    <button
-                      onClick={() => generateInvite(acc.id)}
-                      disabled={inviting === acc.id}
-                      className="text-sm text-emerald-400 hover:text-emerald-300 disabled:opacity-40"
-                    >
-                      {inviting === acc.id ? 'Generating...' : '+ Invite Member'}
-                    </button>
-                    {inviteUrl && (
-                      <div className="mt-2 p-3 bg-white/[0.04] rounded-lg">
-                        <p className="text-xs text-white/40 mb-1">
-                          Share this link (expires {inviteExpiry}):
-                        </p>
-                        <p className="text-xs text-emerald-400 break-all">{inviteUrl}</p>
+                    {/* Invite button — owner only */}
+                    {acc.role === 'owner' && (
+                      <>
                         <button
-                          onClick={() => navigator.clipboard.writeText(inviteUrl)}
-                          className="text-xs text-white/30 hover:text-white/60 mt-1"
+                          onClick={() => generateInvite(acc.id)}
+                          disabled={inviting === acc.id}
+                          className="text-sm text-emerald-400 hover:text-emerald-300 disabled:opacity-40"
                         >
-                          Copy
+                          {inviting === acc.id ? 'Generating...' : '+ Invite Member'}
                         </button>
+                        {inviteUrl && (
+                          <div className="mt-2 p-3 bg-white/[0.04] rounded-lg">
+                            <p className="text-xs text-white/40 mb-1">
+                              Share this link (expires {inviteExpiry}):
+                            </p>
+                            <p className="text-xs text-emerald-400 break-all">{inviteUrl}</p>
+                            <button
+                              onClick={() => navigator.clipboard.writeText(inviteUrl)}
+                              className="text-xs text-white/30 hover:text-white/60 mt-1"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {/* Member list */}
+                    {members[acc.id]?.length > 0 && (
+                      <div
+                        className={
+                          acc.role === 'owner' ? 'mt-3 pt-3 border-t border-white/[0.06]' : ''
+                        }
+                      >
+                        <p className="text-[10px] font-medium text-white/30 uppercase tracking-widest mb-2">
+                          Members
+                        </p>
+                        <div className="space-y-1.5">
+                          {members[acc.id].map((m) => (
+                            <div key={m.id} className="flex items-center gap-2">
+                              <span className="text-sm text-white/70">
+                                {m.display_name ?? m.wa_phone ?? 'Unknown'}
+                              </span>
+                              <span className="text-[10px] text-white/25">{m.role}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
