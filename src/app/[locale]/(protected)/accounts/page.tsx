@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { LinkCodeModal } from '@/components/LinkCodeModal';
-import { useAccountRole } from '@/components/AccountSwitcher';
+import { useAccountRole, refreshAccountSwitcher } from '@/components/AccountSwitcher';
 
 interface Account {
   id: string;
@@ -63,9 +63,10 @@ export default function AccountsPage() {
       body: JSON.stringify({ name: name.trim(), type }),
     });
     const data = await res.json();
-    setAccounts((prev) => [...prev, data]);
+    setAccounts((prev) => [...prev, { ...data, role: 'owner'}]);
     setName('');
     setCreating(false);
+    refreshAccountSwitcher();
   }
 
   async function saveEdit(id: string) {
@@ -78,6 +79,7 @@ export default function AccountsPage() {
     const data = await res.json();
     if (data.id) setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, ...data } : a)));
     setEditingId(null);
+    refreshAccountSwitcher();
   }
 
   async function deleteAccount(id: string) {
@@ -86,6 +88,7 @@ export default function AccountsPage() {
     await fetch('/api/accounts?id=' + id, { method: 'DELETE', credentials: 'include' });
     setAccounts((prev) => prev.filter((a) => a.id !== id));
     setDeleting(null);
+    refreshAccountSwitcher();
   }
 
   async function generateInvite(accountId: string) {
@@ -226,7 +229,7 @@ export default function AccountsPage() {
                   {acc.wa_chat_id && (
                     <span className="text-xs text-emerald-400">✓ WhatsApp linked</span>
                   )}
-                  {isOwner && (
+                  {acc.role === 'owner' && (
                     <div className="ml-auto flex gap-3">
                       <button
                         onClick={() => {
@@ -249,9 +252,9 @@ export default function AccountsPage() {
                   )}
                 </div>
 
-                {isOwner && <LinkCodeModal accountId={acc.id} accountName={acc.name} />}
+                {acc.role === 'owner' && <LinkCodeModal accountId={acc.id} accountName={acc.name} />}
 
-                {isOwner && acc.type === 'group' && (
+                {acc.role === 'owner' && acc.type === 'group' && (
                   <div className="mt-3 pt-3 border-t border-white/[0.06]">
                     <button
                       onClick={() => generateInvite(acc.id)}

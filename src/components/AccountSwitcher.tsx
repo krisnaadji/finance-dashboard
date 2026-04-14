@@ -12,7 +12,12 @@ interface Account {
 let _accountId = '';
 let _accountRole = 'owner';
 let _accountType = 'personal';
+let _refresh: (() => void) | null = null;
 const _subs = new Set<() => void>();
+
+export function refreshAccountSwitcher() {
+  _refresh?.();
+}
 
 export function setSelectedAccountId(id: string, role = 'owner', type = 'personal') {
   _accountId = id;
@@ -64,7 +69,7 @@ export function AccountSwitcher() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [current, setCurrent] = useState(_accountId);
 
-  useEffect(() => {
+  function loadAccounts() {
     fetch('/api/accounts')
       .then((r) => r.json())
       .then((data: Account[]) => {
@@ -75,6 +80,14 @@ export function AccountSwitcher() {
           setCurrent(data[0].id);
         }
       });
+  }
+
+  useEffect(() => {
+    _refresh = loadAccounts;
+    loadAccounts();
+    return () => {
+      _refresh = null;
+    };
   }, []);
 
   if (!accounts.length) return null;
