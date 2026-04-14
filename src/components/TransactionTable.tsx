@@ -13,6 +13,7 @@ interface Transaction {
   categories: { name: string } | null;
   recorded_by_name?: string;
   recorded_by_phone?: string;
+  edited_by_name?: string;
 }
 interface Category {
   id: string;
@@ -186,6 +187,11 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
                   </p>
                   {isGroup && txn.recorded_by_name && (
                     <p className="text-[10px] text-white/25 mt-0.5">by {txn.recorded_by_name}</p>
+                  )}
+                  {isGroup && txn.edited_by_name && (
+                    <p className="text-[10px] text-white/20 mt-0.5">
+                      edited by {txn.edited_by_name}
+                    </p>
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-1.5 shrink-0">
