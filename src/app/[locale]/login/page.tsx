@@ -5,11 +5,14 @@ export default function LoginPage() {
   const supabase = createClient();
 
   async function signIn() {
+    const params = new URLSearchParams(window.location.search);
+    const redirect = params.get('redirect') ?? '/dashboard';
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin + '/api/auth/callback',
-        queryParams: { prompt: 'select_account' }, // always show account picker
+        redirectTo:
+          window.location.origin + '/api/auth/callback?next=' + encodeURIComponent(redirect),
+        queryParams: { prompt: 'select_account' },
       },
     });
   }

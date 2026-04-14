@@ -11,6 +11,8 @@ interface Transaction {
   amount: number;
   type: string;
   categories: { name: string } | null;
+  recorded_by_name?: string;
+  recorded_by_phone?: string;
 }
 interface Category {
   id: string;
@@ -21,9 +23,11 @@ interface Props {
   transactions: Transaction[];
   onDelete: (id: string) => void;
   onUpdate: (txn: Transaction) => void;
+  isOwner?: boolean;
+  isGroup?: boolean;
 }
 
-export function TransactionTable({ transactions, onDelete, onUpdate }: Props) {
+export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, isGroup }: Props) {
   const t = useTranslations('transactions');
   const accountId = useAccountId();
   const [cats, setCats] = useState<Category[]>([]);
@@ -180,6 +184,9 @@ export function TransactionTable({ transactions, onDelete, onUpdate }: Props) {
                   <p className="text-xs text-white/40 mt-0.5">
                     {formatDate(txn.date)} · {txn.categories?.name ?? '—'}
                   </p>
+                  {isGroup && txn.recorded_by_name && (
+                    <p className="text-[10px] text-white/25 mt-0.5">by {txn.recorded_by_name}</p>
+                  )}
                 </div>
                 <div className="flex flex-col items-end gap-1.5 shrink-0">
                   <span
@@ -192,19 +199,23 @@ export function TransactionTable({ transactions, onDelete, onUpdate }: Props) {
                     {formatIDR(txn.amount)}
                   </span>
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => startEdit(txn)}
-                      className="text-xs text-white/30 hover:text-white/60"
-                    >
-                      {t('edit')}
-                    </button>
-                    <button
-                      onClick={() => handleDelete(txn.id)}
-                      disabled={deleting === txn.id}
-                      className="text-xs text-red-400/60 hover:text-red-400 disabled:opacity-40"
-                    >
-                      {deleting === txn.id ? '...' : t('delete')}
-                    </button>
+                    {isOwner !== false && (
+                      <>
+                        <button
+                          onClick={() => startEdit(txn)}
+                          className="text-xs text-white/30 hover:text-white/60"
+                        >
+                          {t('edit')}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(txn.id)}
+                          disabled={deleting === txn.id}
+                          className="text-xs text-red-400/60 hover:text-red-400 disabled:opacity-40"
+                        >
+                          {deleting === txn.id ? '...' : t('delete')}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -264,21 +275,25 @@ export function TransactionTable({ transactions, onDelete, onUpdate }: Props) {
                       {formatIDR(txn.amount)}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => startEdit(txn)}
-                          className="text-xs text-white/30 hover:text-white/60"
-                        >
-                          {t('edit')}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(txn.id)}
-                          disabled={deleting === txn.id}
-                          className="text-xs text-red-400/60 hover:text-red-400 disabled:opacity-40"
-                        >
-                          {deleting === txn.id ? '...' : t('delete')}
-                        </button>
-                      </div>
+                      {isOwner !== false && (
+                        <>
+                          <div className="flex gap-3">
+                            <button
+                              onClick={() => startEdit(txn)}
+                              className="text-xs text-white/30 hover:text-white/60"
+                            >
+                              {t('edit')}
+                            </button>
+                            <button
+                              onClick={() => handleDelete(txn.id)}
+                              disabled={deleting === txn.id}
+                              className="text-xs text-red-400/60 hover:text-red-400 disabled:opacity-40"
+                            >
+                              {deleting === txn.id ? '...' : t('delete')}
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </td>
                   </>
                 )}

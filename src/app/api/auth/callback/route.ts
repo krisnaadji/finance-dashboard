@@ -28,5 +28,6 @@ export async function GET(request: NextRequest) {
     await supabase.auth.exchangeCodeForSession(code);
   }
 
-  return NextResponse.redirect(requestUrl.origin + '/dashboard');
+  const next = requestUrl.searchParams.get('next') ?? '/dashboard';
+  return NextResponse.redirect(requestUrl.origin + next);
 }

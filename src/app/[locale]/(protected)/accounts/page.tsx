@@ -20,6 +20,9 @@ export default function AccountsPage() {
   const [editName, setEditName] = useState('');
   const [editType, setEditType] = useState<'personal' | 'group'>('personal');
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [inviteExpiry, setInviteExpiry] = useState('');
+  const [inviting, setInviting] = useState<string | null>(null);
   const now = new Date().toLocaleDateString('id-ID', {
     weekday: 'long',
     year: 'numeric',
@@ -66,6 +69,18 @@ export default function AccountsPage() {
     await fetch('/api/accounts?id=' + id, { method: 'DELETE' });
     setAccounts((prev) => prev.filter((a) => a.id !== id));
     setDeleting(null);
+  }
+
+  async function generateInvite(accountId: string) {
+    setInviting(accountId);
+    const res = await fetch('/api/accounts/' + accountId + '/invite', {
+      method: 'POST',
+      credentials: 'include',
+    });
+    const data = await res.json();
+    setInviteUrl(data.url);
+    setInviteExpiry(new Date(data.expiresAt).toLocaleString());
+    setInviting(null);
   }
 
   return (
@@ -176,6 +191,34 @@ export default function AccountsPage() {
                   </div>
                 </div>
                 <LinkCodeModal accountId={acc.id} accountName={acc.name} />
+                {/* Only show invite for group accounts */}
+                {acc.type === 'group' && (
+                  <div className="mt-3 pt-3 border-t border-white/[0.06]">
+                    <button
+                      onClick={() => generateInvite(acc.id)}
+                      disabled={inviting === acc.id}
+                      className="text-sm text-emerald-400 hover:text-emerald-300 disabled:opacity-40"
+                    >
+                      {inviting === acc.id ? 'Generating...' : '+ Invite Member'}
+                    </button>
+                    {inviteUrl && (
+                      <div className="mt-2 p-3 bg-white/[0.04] rounded-lg">
+                        <p className="text-xs text-white/40 mb-1">
+                          Share this link (expires {inviteExpiry}):
+                        </p>
+                        <p className="text-xs text-emerald-400 break-all">{inviteUrl}</p>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(inviteUrl);
+                          }}
+                          className="text-xs text-white/30 hover:text-white/60 mt-1"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>

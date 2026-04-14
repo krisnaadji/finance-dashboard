@@ -35,7 +35,7 @@ export async function GET() {
   // 2. Accounts user is a member of (via members table)
   const { data: memberships } = await admin
     .from('members')
-    .select('account_id')
+    .select('account_id, role')
     .eq('user_id', user.id);
 
   const memberIds = (memberships ?? []).map((m) => m.account_id);
@@ -49,8 +49,14 @@ export async function GET() {
     memberAccounts = data ?? [];
   }
 
-  // Merge and deduplicate by id
-  const all = [...(owned ?? []), ...memberAccounts];
+  // Merge with roles, deduplicate by id
+  const ownedWithRole = (owned ?? []).map((a) => ({ ...a, role: 'owner' }));
+  const memberWithRole = memberAccounts.map((a) => {
+    const membership = memberships?.find((m) => m.account_id === a.id);
+    return { ...a, role: membership?.role ?? 'member' };
+  });
+
+  const all = [...ownedWithRole, ...memberWithRole];
   const unique = all.filter((a, i) => all.findIndex((b) => b.id === a.id) === i);
 
   return NextResponse.json(unique);

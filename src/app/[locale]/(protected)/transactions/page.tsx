@@ -1,9 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useAccountId } from '@/components/AccountSwitcher';
+import { useAccountId, useAccountRole, useAccountType } from '@/components/AccountSwitcher';
 import { TransactionTable } from '@/components/TransactionTable';
 import { startOfMonth, today } from '@/lib/utils';
+
 
 interface Transaction {
   id: string;
@@ -17,6 +18,10 @@ interface Transaction {
 export default function TransactionsPage() {
   const t = useTranslations('transactions');
   const accountId = useAccountId(); // ← reacts when AccountSwitcher sets account
+  const accountRole = useAccountRole();
+  const accountType = useAccountType();
+  const isOwner = accountRole === 'owner';
+  const isGroup = accountType === 'group';
 
   const [from, setFrom] = useState(startOfMonth());
   const [to, setTo] = useState(today());
@@ -74,6 +79,8 @@ export default function TransactionsPage() {
           onUpdate={(updated) =>
             setTxns((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
           }
+          isOwner={isOwner}
+          isGroup={isGroup}
         />
       </div>
     </div>

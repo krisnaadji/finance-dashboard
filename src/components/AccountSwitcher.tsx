@@ -1,32 +1,63 @@
 'use client';
-import { useEffect, useState, createContext, useContext } from 'react';
+import { useEffect, useState } from 'react';
 
 interface Account {
   id: string;
   name: string;
   type: string;
+  role: string;
 }
 
-// Module-level store — survives client-side navigation, resets on full page reload
+// Module-level store
 let _accountId = '';
+let _accountRole = 'owner';
+let _accountType = 'personal';
 const _subs = new Set<() => void>();
-function _set(id: string) {
+
+export function setSelectedAccountId(id: string, role = 'owner', type = 'personal') {
   _accountId = id;
+  _accountRole = role;
+  _accountType = type;
   _subs.forEach((f) => f());
 }
 
-// Hook for any page that needs the current account ID
 export function useAccountId() {
-  const [id, setId] = useState(_accountId); // initialise from module var — no SSR issue
+  const [id, setId] = useState(_accountId);
   useEffect(() => {
     const cb = () => setId(_accountId);
     _subs.add(cb);
-    if (_accountId !== id) setId(_accountId); // sync if already loaded
+    if (_accountId !== id) setId(_accountId);
     return () => {
       _subs.delete(cb);
     };
-  }, []); // empty deps — subscribe once
+  }, []);
   return id;
+}
+
+export function useAccountRole() {
+  const [role, setRole] = useState(_accountRole);
+  useEffect(() => {
+    const cb = () => setRole(_accountRole);
+    _subs.add(cb);
+    if (_accountRole !== role) setRole(_accountRole);
+    return () => {
+      _subs.delete(cb);
+    };
+  }, []);
+  return role;
+}
+
+export function useAccountType() {
+  const [type, setType] = useState(_accountType);
+  useEffect(() => {
+    const cb = () => setType(_accountType);
+    _subs.add(cb);
+    if (_accountType !== type) setType(_accountType);
+    return () => {
+      _subs.delete(cb);
+    };
+  }, []);
+  return type;
 }
 
 export function AccountSwitcher() {
@@ -40,18 +71,18 @@ export function AccountSwitcher() {
         if (!Array.isArray(data) || !data.length) return;
         setAccounts(data);
         if (!_accountId) {
-          // only set if not already selected
-          _set(data[0].id);
+          _set(data[0].id, data[0].role, data[0].type);
           setCurrent(data[0].id);
         }
       });
-  }, []); // runs once on mount — NO router.replace, NO dependency on pathname
+  }, []);
 
   if (!accounts.length) return null;
 
   function handleChange(id: string) {
+    const account = accounts.find((a) => a.id === id);
     setCurrent(id);
-    _set(id);
+    _set(id, account?.role ?? 'member', account?.type ?? 'personal');
   }
 
   return (
@@ -72,4 +103,11 @@ export function AccountSwitcher() {
       </select>
     </div>
   );
+}
+
+function _set(id: string, role: string, type: string) {
+  _accountId = id;
+  _accountRole = role;
+  _accountType = type;
+  _subs.forEach((fn) => fn());
 }
