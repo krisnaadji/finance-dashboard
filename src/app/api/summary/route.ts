@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   const admin = createAdminClient();
   const { data: txns } = await admin
     .from('transactions')
-    .select('amount, type, categories(name)')
+    .select('id, amount, type, description, date, categories(name)')
     .eq('account_id', accountId)
     .gte('date', from)
     .lte('date', to);
@@ -36,5 +36,38 @@ export async function GET(req: Request) {
     byMonth[month][txn.type as 'income' | 'expense'] += Number(txn.amount);
   }
 
-  return NextResponse.json({ income, expense, net: income - expense, byCategory, byMonth });
+  // Top 5 expenses and top 5 incomes by amount
+  const topExpenses = rows
+    .filter((t) => t.type === 'expense')
+    .sort((a, b) => Number(b.amount) - Number(a.amount))
+    .slice(0, 5)
+    .map((t) => ({
+      id: t.id,
+      description: t.description,
+      amount: Number(t.amount),
+      date: (t as any).date,
+      category: (t.categories as any)?.name ?? '—',
+    }));
+
+  const topIncomes = rows
+    .filter((t) => t.type === 'income')
+    .sort((a, b) => Number(b.amount) - Number(a.amount))
+    .slice(0, 5)
+    .map((t) => ({
+      id: t.id,
+      description: t.description,
+      amount: Number(t.amount),
+      date: (t as any).date,
+      category: (t.categories as any)?.name ?? '—',
+    }));
+
+  return NextResponse.json({
+    income,
+    expense,
+    net: income - expense,
+    byCategory,
+    byMonth,
+    topExpenses,
+    topIncomes,
+  });
 }

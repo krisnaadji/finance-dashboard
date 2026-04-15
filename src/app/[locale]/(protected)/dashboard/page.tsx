@@ -5,7 +5,15 @@ import { useAccountId } from '@/components/AccountSwitcher';
 import { SummaryCards } from '@/components/SummaryCards';
 import { IncomeExpenseChart } from '@/components/IncomeExpenseChart';
 import { CategoryPieChart } from '@/components/CategoryPieChart';
-import { startOfMonth, today } from '@/lib/utils';
+import { startOfMonth, today, formatIDR, formatDate } from '@/lib/utils';
+
+interface TopTransaction {
+  id: string;
+  description: string;
+  amount: number;
+  date: string;
+  category: string;
+}
 
 interface Summary {
   income: number;
@@ -13,11 +21,13 @@ interface Summary {
   net: number;
   byCategory: Record<string, number>;
   byMonth: Record<string, { income: number; expense: number }>;
+  topExpenses: TopTransaction[];
+  topIncomes: TopTransaction[];
 }
 
 export default function DashboardPage() {
   const t = useTranslations('summary');
-  const accountId = useAccountId(); // ← reacts when AccountSwitcher sets account
+  const accountId = useAccountId();
 
   const [from, setFrom] = useState(startOfMonth());
   const [to, setTo] = useState(today());
@@ -25,7 +35,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!accountId) return; // wait until AccountSwitcher sets account
+    if (!accountId) return;
     let cancelled = false;
     setLoading(true);
     fetch(`/api/summary?account_id=${accountId}&from=${from}&to=${to}`)
@@ -39,11 +49,12 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [accountId, from, to]); // re-runs when accountId changes
+  }, [accountId, from, to]);
 
   const topEntry = summary
     ? Object.entries(summary.byCategory).sort((a, b) => b[1] - a[1])[0]
     : null;
+
   const now = new Date().toLocaleDateString('id-ID', {
     weekday: 'long',
     year: 'numeric',
@@ -66,6 +77,7 @@ export default function DashboardPage() {
         <p className="text-xs text-white/40">{now}</p>
       </div>
 
+      {/* Date range */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <div className="flex items-center gap-2">
           <label className="text-xs text-white/40">From</label>
@@ -99,10 +111,63 @@ export default function DashboardPage() {
             topExpenseCategory={topEntry?.[0]}
             topExpenseAmount={topEntry?.[1]}
           />
+
+          {/* Charts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
             <IncomeExpenseChart byMonth={summary.byMonth} />
             <CategoryPieChart byCategory={summary.byCategory} />
           </div>
+
+          {/* Top transactions */}
+          {(summary.topExpenses.length > 0 || summary.topIncomes.length > 0) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+              {/* Top expenses */}
+              {summary.topExpenses.length > 0 && (
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                  <h2 className="text-sm font-medium text-white/60 mb-3">🔺 Top Expenses</h2>
+                  <div className="space-y-2">
+                    {summary.topExpenses.map((txn, i) => (
+                      <div key={txn.id} className="flex items-center gap-3">
+                        <span className="text-xs text-white/20 w-4">{i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-white/80 truncate">{txn.description}</p>
+                          <p className="text-xs text-white/30">
+                            {txn.category} · {formatDate(txn.date)}
+                          </p>
+                        </div>
+                        <span className="text-sm font-medium text-red-400 whitespace-nowrap">
+                          -{formatIDR(txn.amount)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Top incomes */}
+              {summary.topIncomes.length > 0 && (
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                  <h2 className="text-sm font-medium text-white/60 mb-3">💰 Top Incomes</h2>
+                  <div className="space-y-2">
+                    {summary.topIncomes.map((txn, i) => (
+                      <div key={txn.id} className="flex items-center gap-3">
+                        <span className="text-xs text-white/20 w-4">{i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-white/80 truncate">{txn.description}</p>
+                          <p className="text-xs text-white/30">
+                            {txn.category} · {formatDate(txn.date)}
+                          </p>
+                        </div>
+                        <span className="text-sm font-medium text-emerald-400 whitespace-nowrap">
+                          +{formatIDR(txn.amount)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
 
