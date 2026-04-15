@@ -88,6 +88,47 @@ export default function TransactionsPage() {
     setJumpInput('');
   }
 
+  async function exportCSV() {
+    const params = new URLSearchParams({
+      account_id: accountId,
+      from,
+      to,
+      page: '1',
+      page_size: '99999',
+      ...(type && { type }),
+      ...(categoryId && { category_id: categoryId }),
+      ...(search && { search }),
+    });
+
+    const res = await fetch(`/api/transactions?${params}`);
+    const data = await res.json();
+    const rows = data.data ?? [];
+
+    if (!rows.length) return;
+
+    const headers = ['Date', 'Description', 'Category', 'Type', 'Amount'];
+    const lines = [
+      headers.join(','),
+      ...rows.map((t: Transaction) =>
+        [
+          t.date,
+          `"${(t.description ?? '').replace(/"/g, '""')}"`,
+          `"${(t.categories?.name ?? '—').replace(/"/g, '""')}"`,
+          t.type,
+          t.amount,
+        ].join(','),
+      ),
+    ];
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transactions-${from}-${to}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (!accountId)
     return (
       <div className="text-center py-20 text-white/30">
@@ -102,8 +143,14 @@ export default function TransactionsPage() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-semibold text-white">{t('title')}</h1>
+        <button
+          onClick={exportCSV}
+          className="rounded-lg bg-white/[0.06] border border-white/[0.1] text-white/60 px-3 py-1.5 text-sm hover:bg-white/[0.1] whitespace-nowrap"
+        >
+          ↓ Export CSV
+        </button>
       </div>
 
       {/* Filters */}
