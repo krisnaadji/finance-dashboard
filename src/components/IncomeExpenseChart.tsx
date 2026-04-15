@@ -14,15 +14,19 @@ import { formatIDR } from '@/lib/utils';
 
 interface Props {
   byMonth: Record<string, { income: number; expense: number }>;
+  title?: string;
 }
 
-export function IncomeExpenseChart({ byMonth }: Props) {
+export function IncomeExpenseChart({ byMonth, title }: Props) {
   const t = useTranslations('summary');
 
   const data = Object.entries(byMonth)
     .sort()
     .map(([month, vals]) => ({
-      month,
+      month: new Date(month + '-01').toLocaleDateString('id-ID', {
+        month: 'short',
+        year: '2-digit',
+      }),
       [t('income')]: vals.income,
       [t('expense')]: vals.expense,
     }));
@@ -30,7 +34,7 @@ export function IncomeExpenseChart({ byMonth }: Props) {
   return (
     <div className="rounded-xl border border-white/[0.06] p-5 bg-white/[0.03] overflow-hidden">
       <h3 className="text-sm font-medium text-white/60 mb-4">
-        {t('income')} vs {t('expense')}
+        {title ?? `${t('income')} vs ${t('expense')}`}
       </h3>
       <ResponsiveContainer width="100%" height={240}>
         <BarChart data={data}>

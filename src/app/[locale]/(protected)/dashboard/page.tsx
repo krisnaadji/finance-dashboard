@@ -33,11 +33,28 @@ export default function DashboardPage() {
   const [to, setTo] = useState(today());
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(false);
+  const [trend, setTrend] = useState<Record<string, { income: number; expense: number }> | null>(
+    null,
+  );
+  const [showTrend, setShowTrend] = useState(false);
+  const [loadingTrend, setLoadingTrend] = useState(false);
+
+  async function handleShowTrend() {
+    setShowTrend(true);
+    if (trend) return; // already fetched, just show
+    setLoadingTrend(true);
+    const res = await fetch(`/api/summary/trend?account_id=${accountId}`);
+    const d = await res.json();
+    setTrend(d);
+    setLoadingTrend(false);
+  }
 
   useEffect(() => {
     if (!accountId) return;
     let cancelled = false;
     setLoading(true);
+    setTrend(null);
+    setShowTrend(false);
     fetch(`/api/summary?account_id=${accountId}&from=${from}&to=${to}`)
       .then((r) => r.json())
       .then((d) => {
@@ -174,6 +191,36 @@ export default function DashboardPage() {
       {!loading && summary && summary.income === 0 && summary.expense === 0 && (
         <p className="text-center text-white/30 mt-12 text-sm">No transactions this period</p>
       )}
+      {/* 12-month trend toggle */}
+      <div className="mt-6">
+        {!showTrend ? (
+          <button
+            onClick={handleShowTrend}
+            className="w-full rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm text-white/40 hover:text-white/60 hover:bg-white/[0.05] transition-colors"
+          >
+            Show 12-month trend ↓
+          </button>
+        ) : (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-white/30">Last 12 months</span>
+              <button
+                onClick={() => setShowTrend(false)}
+                className="text-xs text-white/30 hover:text-white/60"
+              >
+                Hide ↑
+              </button>
+            </div>
+            {loadingTrend ? (
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm text-white/30 animate-pulse">
+                Loading trend...
+              </div>
+            ) : (
+              trend && <IncomeExpenseChart byMonth={trend} title="12-Month Trend" />
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
