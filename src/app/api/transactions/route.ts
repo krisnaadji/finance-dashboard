@@ -7,6 +7,8 @@ export async function GET(req: Request) {
   const from = searchParams.get('from');
   const to = searchParams.get('to');
   const type = searchParams.get('type');
+  const search = searchParams.get('search');
+  const categoryId = searchParams.get('category_id');
   if (!accountId) return NextResponse.json({ error: 'Missing account_id' }, { status: 400 });
 
   const admin = createAdminClient();
@@ -20,6 +22,8 @@ export async function GET(req: Request) {
   if (from) query = query.gte('date', from);
   if (to) query = query.lte('date', to);
   if (type) query = query.eq('type', type);
+  if (search) query = query.ilike('description', `%${search}%`);
+  if (categoryId) query = query.eq('category_id', categoryId);
 
   const { data } = await query;
   return NextResponse.json(data ?? []);
