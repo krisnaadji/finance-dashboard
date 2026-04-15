@@ -20,6 +20,9 @@ interface Category {
   type: string;
 }
 
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100, 'All'] as const;
+type PageSizeOption = (typeof PAGE_SIZE_OPTIONS)[number];
+
 export default function TransactionsPage() {
   const t = useTranslations('transactions');
   const accountId = useAccountId();
@@ -37,6 +40,11 @@ export default function TransactionsPage() {
   const [txns, setTxns] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSizeOption>(20);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [jumpInput, setJumpInput] = useState('');
 
   useEffect(() => {
     if (!accountId) return;
@@ -48,25 +56,37 @@ export default function TransactionsPage() {
   }, [accountId]);
 
   useEffect(() => {
+    setPage(1);
+  }, [accountId, from, to, type, categoryId, search, pageSize]);
+
+  useEffect(() => {
     if (!accountId) return;
     setLoading(true);
     const params = new URLSearchParams({
       account_id: accountId,
       from,
       to,
+      page: String(page),
+      page_size: pageSize === 'All' ? '99999' : String(pageSize),
       ...(type && { type }),
       ...(categoryId && { category_id: categoryId }),
       ...(search && { search }),
     });
     fetch(`/api/transactions?${params}`)
       .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setTxns(data);
-          setLoading(false);
-        }
+      .then((res) => {
+        setTxns(res.data ?? []);
+        setTotal(res.total ?? 0);
+        setTotalPages(res.totalPages ?? 1);
+        setLoading(false);
       });
-  }, [accountId, from, to, type, categoryId, search]);
+  }, [accountId, from, to, type, categoryId, search, page, pageSize]);
+
+  function handleJump() {
+    const n = parseInt(jumpInput);
+    if (!isNaN(n) && n >= 1 && n <= totalPages) setPage(n);
+    setJumpInput('');
+  }
 
   if (!accountId)
     return (
@@ -78,6 +98,7 @@ export default function TransactionsPage() {
 
   const hasActiveFilters = !!(type || categoryId || search);
   const filteredCategories = categories.filter((c) => !type || c.type === type);
+  const showPagination = pageSize !== 'All' && totalPages > 1;
 
   return (
     <div>
@@ -87,7 +108,6 @@ export default function TransactionsPage() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 mb-4">
-        {/* Row 1: Date range */}
         <div className="flex gap-2 w-full sm:w-auto">
           <input
             type="date"
@@ -103,8 +123,6 @@ export default function TransactionsPage() {
             className="flex-1 sm:flex-none rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-1.5 text-sm [color-scheme:dark]"
           />
         </div>
-
-        {/* Row 2: Type + Category */}
         <div className="flex gap-2 w-full sm:w-auto">
           <select
             value={type}
@@ -139,8 +157,6 @@ export default function TransactionsPage() {
             ))}
           </select>
         </div>
-
-        {/* Row 3: Search */}
         <div className="flex gap-2 w-full sm:w-auto sm:flex-1 sm:max-w-xs">
           <input
             type="text"
@@ -170,53 +186,75 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* Active filters summary */}
-      {hasActiveFilters && (
-        <div className="flex gap-2 mb-3 flex-wrap items-center">
-          {type && (
-            <span className="text-xs bg-emerald-500/10 text-emerald-400 rounded-full px-2.5 py-1">
-              {type}
-              <button
-                onClick={() => {
-                  setType('');
-                  setCategoryId('');
-                }}
-                className="ml-1.5 opacity-60 hover:opacity-100"
-              >
-                ✕
-              </button>
-            </span>
-          )}
-          {categoryId && (
-            <span className="text-xs bg-emerald-500/10 text-emerald-400 rounded-full px-2.5 py-1">
-              {categories.find((c) => c.id === categoryId)?.name}
-              <button
-                onClick={() => setCategoryId('')}
-                className="ml-1.5 opacity-60 hover:opacity-100"
-              >
-                ✕
-              </button>
-            </span>
-          )}
-          {search && (
-            <span className="text-xs bg-emerald-500/10 text-emerald-400 rounded-full px-2.5 py-1">
-              "{search}"
-              <button
-                onClick={() => {
-                  setSearch('');
-                  setSearchInput('');
-                }}
-                className="ml-1.5 opacity-60 hover:opacity-100"
-              >
-                ✕
-              </button>
-            </span>
-          )}
+      {/* Active filters + result count + page size */}
+      <div className="flex gap-2 mb-3 flex-wrap items-center">
+        {hasActiveFilters && (
+          <>
+            {type && (
+              <span className="text-xs bg-emerald-500/10 text-emerald-400 rounded-full px-2.5 py-1">
+                {type}
+                <button
+                  onClick={() => {
+                    setType('');
+                    setCategoryId('');
+                  }}
+                  className="ml-1.5 opacity-60 hover:opacity-100"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+            {categoryId && (
+              <span className="text-xs bg-emerald-500/10 text-emerald-400 rounded-full px-2.5 py-1">
+                {categories.find((c) => c.id === categoryId)?.name}
+                <button
+                  onClick={() => setCategoryId('')}
+                  className="ml-1.5 opacity-60 hover:opacity-100"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+            {search && (
+              <span className="text-xs bg-emerald-500/10 text-emerald-400 rounded-full px-2.5 py-1">
+                "{search}"
+                <button
+                  onClick={() => {
+                    setSearch('');
+                    setSearchInput('');
+                  }}
+                  className="ml-1.5 opacity-60 hover:opacity-100"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+          </>
+        )}
+        <div className="ml-auto flex items-center gap-3">
           <span className="text-xs text-white/30">
-            {txns.length} result{txns.length !== 1 ? 's' : ''}
+            {total} transaction{total !== 1 ? 's' : ''}
           </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-white/30">Show</span>
+            <select
+              value={String(pageSize)}
+              onChange={(e) =>
+                setPageSize(
+                  e.target.value === 'All' ? 'All' : (Number(e.target.value) as PageSizeOption),
+                )
+              }
+              className="rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-2 py-1 text-xs"
+            >
+              {PAGE_SIZE_OPTIONS.map((s) => (
+                <option key={String(s)} value={String(s)} className="bg-[#1a1a1f]">
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-      )}
+      </div>
 
       {loading && <p className="text-white/30 text-sm animate-pulse mb-3">Loading...</p>}
 
@@ -231,6 +269,49 @@ export default function TransactionsPage() {
           isGroup={isGroup}
         />
       </div>
+
+      {/* Pagination */}
+      {showPagination && (
+        <div className="flex items-center justify-between mt-4 gap-3 flex-wrap">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="rounded-lg bg-white/[0.06] border border-white/[0.1] text-white/60 px-4 py-1.5 text-sm hover:bg-white/[0.1] disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            ← Prev
+          </button>
+
+          {/* Jump to page */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-white/30">Page</span>
+            <input
+              type="number"
+              min={1}
+              max={totalPages}
+              value={jumpInput}
+              placeholder={String(page)}
+              onChange={(e) => setJumpInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleJump()}
+              className="w-14 rounded-lg border border-white/[0.1] bg-white/[0.06] text-white text-center px-2 py-1 text-xs [appearance:textfield]"
+            />
+            <span className="text-xs text-white/30">of {totalPages}</span>
+            <button
+              onClick={handleJump}
+              className="rounded-lg bg-white/[0.06] border border-white/[0.1] text-white/40 px-2.5 py-1 text-xs hover:bg-white/[0.1]"
+            >
+              Go
+            </button>
+          </div>
+
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="rounded-lg bg-white/[0.06] border border-white/[0.1] text-white/60 px-4 py-1.5 text-sm hover:bg-white/[0.1] disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            Next →
+          </button>
+        </div>
+      )}
     </div>
   );
 }
