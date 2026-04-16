@@ -15,11 +15,24 @@ interface TopTransaction {
   category: string;
 }
 
+interface Budget {
+  id: string;
+  category_id: string;
+  amount: number;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  type: string;
+}
+
 interface Summary {
   income: number;
   expense: number;
   net: number;
   byCategory: Record<string, number>;
+  spendingByCategoryId: Record<string, number>;
   byMonth: Record<string, { income: number; expense: number }>;
   topExpenses: TopTransaction[];
   topIncomes: TopTransaction[];
@@ -33,6 +46,8 @@ export default function DashboardPage() {
   const [to, setTo] = useState(today());
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(false);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [trend, setTrend] = useState<Record<string, { income: number; expense: number }> | null>(
     null,
   );
@@ -41,7 +56,7 @@ export default function DashboardPage() {
 
   async function handleShowTrend() {
     setShowTrend(true);
-    if (trend) return; // already fetched, just show
+    if (trend) return;
     setLoadingTrend(true);
     const res = await fetch(`/api/summary/trend?account_id=${accountId}`);
     const d = await res.json();
@@ -55,14 +70,20 @@ export default function DashboardPage() {
     setLoading(true);
     setTrend(null);
     setShowTrend(false);
-    fetch(`/api/summary?account_id=${accountId}&from=${from}&to=${to}`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (!cancelled) {
-          setSummary(d);
-          setLoading(false);
-        }
-      });
+
+    Promise.all([
+      fetch(`/api/summary?account_id=${accountId}&from=${from}&to=${to}`).then((r) => r.json()),
+      fetch(`/api/budgets?account_id=${accountId}`).then((r) => r.json()),
+      fetch(`/api/categories?account_id=${accountId}`).then((r) => r.json()),
+    ]).then(([summaryData, budgetsData, catsData]) => {
+      if (!cancelled) {
+        setSummary(summaryData);
+        setBudgets(Array.isArray(budgetsData) ? budgetsData : []);
+        setCategories(Array.isArray(catsData) ? catsData : []);
+        setLoading(false);
+      }
+    });
+
     return () => {
       cancelled = true;
     };
@@ -71,6 +92,19 @@ export default function DashboardPage() {
   const topEntry = summary
     ? Object.entries(summary.byCategory).sort((a, b) => b[1] - a[1])[0]
     : null;
+
+  // Build budget overview — only expense categories with a budget set
+  const budgetOverview = budgets
+    .map((b) => {
+      const cat = categories.find((c) => c.id === b.category_id);
+      if (!cat || cat.type !== 'expense') return null;
+      const spent = summary?.spendingByCategoryId?.[b.category_id] ?? 0;
+      const pct = (spent / b.amount) * 100;
+      const over = spent > b.amount;
+      return { id: b.id, name: cat.name, spent, limit: b.amount, pct, over };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b!.pct - a!.pct); // sort by % used descending
 
   const now = new Date().toLocaleDateString('id-ID', {
     weekday: 'long',
@@ -135,10 +169,82 @@ export default function DashboardPage() {
             <CategoryPieChart byCategory={summary.byCategory} />
           </div>
 
+          {/* Budget Overview */}
+          {budgetOverview.length > 0 && (
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 mt-6">
+              <h2 className="text-sm font-medium text-white/60 mb-4">📊 Budget Overview</h2>
+              <div className="space-y-3">
+                {budgetOverview.map(
+                  (b) =>
+                    b && (
+                      <div key={b.id}>
+                        <div className="flex justify-between items-center mb-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-white/80">{b.name}</span>
+                            {b.over && (
+                              <span className="text-[10px] bg-red-500/10 text-red-400 rounded px-1.5 py-0.5">
+                                Over budget
+                              </span>
+                            )}
+                            {!b.over && b.pct >= 80 && (
+                              <span className="text-[10px] bg-amber-500/10 text-amber-400 rounded px-1.5 py-0.5">
+                                Near limit
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <span
+                              className={`text-xs font-medium ${
+                                b.over
+                                  ? 'text-red-400'
+                                  : b.pct >= 80
+                                    ? 'text-amber-400'
+                                    : 'text-white/60'
+                              }`}
+                            >
+                              Rp{formatIDR(b.spent)}
+                            </span>
+                            <span className="text-xs text-white/30"> / Rp{formatIDR(b.limit)}</span>
+                          </div>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              b.over
+                                ? 'bg-red-500'
+                                : b.pct >= 80
+                                  ? 'bg-amber-500'
+                                  : 'bg-emerald-500'
+                            }`}
+                            style={{ width: `${Math.min(b.pct, 100)}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between mt-0.5">
+                          <span className="text-[10px] text-white/20">
+                            Rp{formatIDR(Math.max(b.limit - b.spent, 0))} remaining
+                          </span>
+                          <span
+                            className={`text-[10px] ${
+                              b.over
+                                ? 'text-red-400'
+                                : b.pct >= 80
+                                  ? 'text-amber-400'
+                                  : 'text-white/20'
+                            }`}
+                          >
+                            {Math.round(b.pct)}%
+                          </span>
+                        </div>
+                      </div>
+                    ),
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Top transactions */}
           {(summary.topExpenses.length > 0 || summary.topIncomes.length > 0) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-              {/* Top expenses */}
               {summary.topExpenses.length > 0 && (
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
                   <h2 className="text-sm font-medium text-white/60 mb-3">🔺 Top Expenses</h2>
@@ -160,8 +266,6 @@ export default function DashboardPage() {
                   </div>
                 </div>
               )}
-
-              {/* Top incomes */}
               {summary.topIncomes.length > 0 && (
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
                   <h2 className="text-sm font-medium text-white/60 mb-3">💰 Top Incomes</h2>
@@ -191,6 +295,7 @@ export default function DashboardPage() {
       {!loading && summary && summary.income === 0 && summary.expense === 0 && (
         <p className="text-center text-white/30 mt-12 text-sm">No transactions this period</p>
       )}
+
       {/* 12-month trend toggle */}
       <div className="mt-6">
         {!showTrend ? (

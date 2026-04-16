@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   const admin = createAdminClient();
   const { data: txns } = await admin
     .from('transactions')
-    .select('id, amount, type, description, date, categories(name)')
+    .select('id, amount, type, description, date, category_id, categories(name)')
     .eq('account_id', accountId)
     .gte('date', from)
     .lte('date', to);
@@ -24,9 +24,14 @@ export async function GET(req: Request) {
     .reduce((s, t) => s + Number(t.amount), 0);
 
   const byCategory: Record<string, number> = {};
+  const spendingByCategoryId: Record<string, number> = {};
+
   for (const txn of rows.filter((t) => t.type === 'expense')) {
     const name = (txn.categories as any)?.name ?? 'Other';
+    const catId = (txn as any).category_id;
     byCategory[name] = (byCategory[name] ?? 0) + Number(txn.amount);
+    if (catId)
+      spendingByCategoryId[catId] = (spendingByCategoryId[catId] ?? 0) + Number(txn.amount);
   }
 
   const byMonth: Record<string, { income: number; expense: number }> = {};
@@ -36,7 +41,6 @@ export async function GET(req: Request) {
     byMonth[month][txn.type as 'income' | 'expense'] += Number(txn.amount);
   }
 
-  // Top 5 expenses and top 5 incomes by amount
   const topExpenses = rows
     .filter((t) => t.type === 'expense')
     .sort((a, b) => Number(b.amount) - Number(a.amount))
@@ -66,6 +70,7 @@ export async function GET(req: Request) {
     expense,
     net: income - expense,
     byCategory,
+    spendingByCategoryId,
     byMonth,
     topExpenses,
     topIncomes,
