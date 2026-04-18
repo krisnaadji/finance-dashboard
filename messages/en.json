@@ -28,7 +28,28 @@
     "delete": "Delete",
     "confirmDelete": "Delete this transaction?",
     "filterFrom": "From",
-    "filterTo": "To"
+    "filterTo": "To",
+    "add": "Add"
+  },
+  "addTransaction": {
+    "title": "Add Transaction",
+    "type": "Type",
+    "expense": "Expense",
+    "income": "Income",
+    "date": "Date",
+    "amount": "Amount",
+    "category": "Category",
+    "categoryOptional": "Category (optional)",
+    "categoryNone": "No category",
+    "description": "Description",
+    "descriptionPlaceholder": "e.g. lunch at warung",
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "amountInvalid": "Amount must be greater than zero",
+    "saveFailed": "Failed to save transaction",
+    "budgetOver": "{category} budget exceeded: Rp{spent} / Rp{limit} ({pct}%)",
+    "budgetNear": "{category} budget: Rp{spent} / Rp{limit} ({pct}%)"
   },
   "accounts": {
     "title": "Accounts",

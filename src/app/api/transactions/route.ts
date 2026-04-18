@@ -1,5 +1,20 @@
 import { createAdminClient } from '@/lib/supabase-server';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+
+async function getAuthUser() {
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } },
+  );
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user;
+}
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -40,4 +55,126 @@ export async function GET(req: Request) {
     pageSize,
     totalPages: Math.ceil((count ?? 0) / pageSize),
   });
+}
+
+// POST: create a transaction from the dashboard
+export async function POST(req: Request) {
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const body = await req.json().catch(() => null);
+  if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+
+  const {
+    account_id,
+    description,
+    amount,
+    type,
+    date,
+    category_id,
+  }: {
+    account_id?: string;
+    description?: string;
+    amount?: number | string;
+    type?: string;
+    date?: string;
+    category_id?: string | null;
+  } = body;
+
+  // Validation
+  if (!account_id) return NextResponse.json({ error: 'Missing account_id' }, { status: 400 });
+  if (!type || (type !== 'expense' && type !== 'income'))
+    return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
+  const amt = typeof amount === 'string' ? Number(amount) : amount;
+  if (amt === undefined || amt === null || isNaN(Number(amt)) || Number(amt) <= 0)
+    return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date))
+    return NextResponse.json({ error: 'Invalid date' }, { status: 400 });
+
+  const admin = createAdminClient();
+
+  // Verify caller is a member of the account
+  const { data: membership } = await admin
+    .from('members')
+    .select('display_name')
+    .eq('account_id', account_id)
+    .eq('user_id', user.id)
+    .single();
+  if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  // Insert the transaction
+  const { data: txn, error } = await admin
+    .from('transactions')
+    .insert({
+      account_id,
+      category_id: category_id || null,
+      amount: Number(amt),
+      type,
+      description: description ?? '',
+      date,
+      raw_message: null,
+      wa_user_message_id: null,
+      recorded_by_name: membership.display_name ?? user.email ?? null,
+      recorded_by_phone: null,
+    })
+    .select('*, categories(name)')
+    .single();
+
+  if (error || !txn) {
+    return NextResponse.json(
+      { error: error?.message ?? 'Failed to create transaction' },
+      { status: 500 },
+    );
+  }
+
+  // Compute budget warning (same logic as bot's createTxn)
+  let budgetWarning: {
+    category_name: string;
+    spent: number;
+    limit: number;
+    pct: number;
+    over: boolean;
+  } | null = null;
+
+  if (type === 'expense' && category_id) {
+    const { data: budget } = await admin
+      .from('budgets')
+      .select('amount')
+      .eq('account_id', account_id)
+      .eq('category_id', category_id)
+      .single();
+
+    if (budget) {
+      const now = new Date();
+      const from = new Date(now.getFullYear(), now.getMonth(), 1)
+        .toISOString()
+        .split('T')[0];
+      const to = now.toISOString().split('T')[0];
+
+      const { data: spendRows } = await admin
+        .from('transactions')
+        .select('amount')
+        .eq('account_id', account_id)
+        .eq('category_id', category_id)
+        .eq('type', 'expense')
+        .gte('date', from)
+        .lte('date', to);
+
+      const totalSpent = (spendRows ?? []).reduce((s, r) => s + Number(r.amount), 0);
+      const pct = Math.round((totalSpent / Number(budget.amount)) * 100);
+      const over = totalSpent > Number(budget.amount);
+
+      if (over || pct >= 80) {
+        budgetWarning = {
+          category_name: (txn.categories as { name?: string } | null)?.name ?? '',
+          spent: totalSpent,
+          limit: Number(budget.amount),
+          pct,
+          over,
+        };
+      }
+    }
+  }
+
+  return NextResponse.json({ transaction: txn, budgetWarning });
 }

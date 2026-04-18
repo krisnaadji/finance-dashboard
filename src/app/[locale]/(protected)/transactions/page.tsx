@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useAccountId, useAccountRole, useAccountType } from '@/components/AccountSwitcher';
 import { TransactionTable } from '@/components/TransactionTable';
+import { AddTransactionModal } from '@/components/AddTransactionModal';
 import { startOfMonth, today } from '@/lib/utils';
 
 interface Transaction {
@@ -45,6 +46,8 @@ export default function TransactionsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [jumpInput, setJumpInput] = useState('');
+  const [addOpen, setAddOpen] = useState(false);
+  const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
     if (!accountId) return;
@@ -80,7 +83,7 @@ export default function TransactionsPage() {
         setTotalPages(res.totalPages ?? 1);
         setLoading(false);
       });
-  }, [accountId, from, to, type, categoryId, search, page, pageSize]);
+  }, [accountId, from, to, type, categoryId, search, page, pageSize, reloadTick]);
 
   function handleJump() {
     const n = parseInt(jumpInput);
@@ -143,15 +146,30 @@ export default function TransactionsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-2">
         <h1 className="text-xl font-semibold text-white">{t('title')}</h1>
-        <button
-          onClick={exportCSV}
-          className="rounded-lg bg-white/[0.06] border border-white/[0.1] text-white/60 px-3 py-1.5 text-sm hover:bg-white/[0.1] whitespace-nowrap"
-        >
-          ↓ Export CSV
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setAddOpen(true)}
+            className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-sm font-medium hover:bg-emerald-500 whitespace-nowrap"
+          >
+            + {t('add')}
+          </button>
+          <button
+            onClick={exportCSV}
+            className="rounded-lg bg-white/[0.06] border border-white/[0.1] text-white/60 px-3 py-1.5 text-sm hover:bg-white/[0.1] whitespace-nowrap"
+          >
+            ↓ Export CSV
+          </button>
+        </div>
       </div>
+
+      <AddTransactionModal
+        accountId={accountId}
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onCreated={() => setReloadTick((n) => n + 1)}
+      />
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 mb-4">

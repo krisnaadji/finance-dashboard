@@ -28,7 +28,28 @@
     "delete": "Hapus",
     "confirmDelete": "Yakin ingin menghapus transaksi ini?",
     "filterFrom": "Dari",
-    "filterTo": "Sampai"
+    "filterTo": "Sampai",
+    "add": "Tambah"
+  },
+  "addTransaction": {
+    "title": "Tambah Transaksi",
+    "type": "Jenis",
+    "expense": "Pengeluaran",
+    "income": "Pemasukan",
+    "date": "Tanggal",
+    "amount": "Jumlah",
+    "category": "Kategori",
+    "categoryOptional": "Kategori (opsional)",
+    "categoryNone": "Tanpa kategori",
+    "description": "Keterangan",
+    "descriptionPlaceholder": "mis. makan siang di warung",
+    "save": "Simpan",
+    "saving": "Menyimpan...",
+    "cancel": "Batal",
+    "amountInvalid": "Jumlah harus lebih dari nol",
+    "saveFailed": "Gagal menyimpan transaksi",
+    "budgetOver": "Budget {category} terlampaui: Rp{spent} / Rp{limit} ({pct}%)",
+    "budgetNear": "Budget {category}: Rp{spent} / Rp{limit} ({pct}%)"
   },
   "accounts": {
     "title": "Akun",

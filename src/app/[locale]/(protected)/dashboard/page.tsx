@@ -5,6 +5,7 @@ import { useAccountId } from '@/components/AccountSwitcher';
 import { SummaryCards } from '@/components/SummaryCards';
 import { IncomeExpenseChart } from '@/components/IncomeExpenseChart';
 import { CategoryPieChart } from '@/components/CategoryPieChart';
+import { AddTransactionModal } from '@/components/AddTransactionModal';
 import { startOfMonth, today, formatIDR, formatDate } from '@/lib/utils';
 
 interface TopTransaction {
@@ -40,6 +41,7 @@ interface Summary {
 
 export default function DashboardPage() {
   const t = useTranslations('summary');
+  const tTxn = useTranslations('transactions');
   const accountId = useAccountId();
 
   const [from, setFrom] = useState(startOfMonth());
@@ -53,6 +55,8 @@ export default function DashboardPage() {
   );
   const [showTrend, setShowTrend] = useState(false);
   const [loadingTrend, setLoadingTrend] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [reloadTick, setReloadTick] = useState(0);
 
   async function handleShowTrend() {
     setShowTrend(true);
@@ -87,7 +91,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [accountId, from, to]);
+  }, [accountId, from, to, reloadTick]);
 
   const topEntry = summary
     ? Object.entries(summary.byCategory).sort((a, b) => b[1] - a[1])[0]
@@ -123,10 +127,25 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-1">
-        <h1 className="text-xl font-semibold text-white">{t('title')}</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-2">
+        <div className="flex items-center justify-between sm:justify-start gap-3">
+          <h1 className="text-xl font-semibold text-white">{t('title')}</h1>
+          <button
+            onClick={() => setAddOpen(true)}
+            className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-sm font-medium hover:bg-emerald-500 whitespace-nowrap"
+          >
+            + {tTxn('add')}
+          </button>
+        </div>
         <p className="text-xs text-white/40">{now}</p>
       </div>
+
+      <AddTransactionModal
+        accountId={accountId}
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onCreated={() => setReloadTick((n) => n + 1)}
+      />
 
       {/* Date range */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
