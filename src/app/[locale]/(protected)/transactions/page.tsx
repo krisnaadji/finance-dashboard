@@ -5,6 +5,9 @@ import { useAccountId, useAccountRole, useAccountType } from '@/components/Accou
 import { TransactionTable } from '@/components/TransactionTable';
 import { AddTransactionModal } from '@/components/AddTransactionModal';
 import { startOfMonth, today } from '@/lib/utils';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { GlowBadge } from '@/components/ui/GlowBadge';
+import { GlassButton } from '@/components/ui/GlassButton';
 
 interface Transaction {
   id: string;
@@ -149,18 +152,12 @@ export default function TransactionsPage() {
       <div className="flex items-center justify-between mb-4 gap-2">
         <h1 className="text-xl font-semibold text-white">{t('title')}</h1>
         <div className="flex gap-2">
-          <button
-            onClick={() => setAddOpen(true)}
-            className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-sm font-medium hover:bg-emerald-500 whitespace-nowrap"
-          >
-            + {t('add')}
-          </button>
-          <button
-            onClick={exportCSV}
-            className="rounded-lg bg-white/[0.06] border border-white/[0.1] text-white/60 px-3 py-1.5 text-sm hover:bg-white/[0.1] whitespace-nowrap"
-          >
-            ↓ Export CSV
-          </button>
+          <GlassButton variant="primary" onClick={() => setAddOpen(true)}>
+            + Add
+          </GlassButton>
+          <GlassButton variant="ghost" onClick={exportCSV}>
+            Export CSV
+          </GlassButton>
         </div>
       </div>
 
@@ -172,7 +169,8 @@ export default function TransactionsPage() {
       />
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 mb-4">
+      <GlassCard className="p-3 md:p-4 mb-4">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
         <div className="flex gap-2 w-full sm:w-auto">
           <input
             type="date"
@@ -250,49 +248,44 @@ export default function TransactionsPage() {
           )}
         </div>
       </div>
+      </GlassCard>
 
       {/* Active filters + result count + page size */}
       <div className="flex gap-2 mb-3 flex-wrap items-center">
         {hasActiveFilters && (
           <>
             {type && (
-              <span className="text-xs bg-emerald-500/10 text-emerald-400 rounded-full px-2.5 py-1">
-                {type}
-                <button
-                  onClick={() => {
-                    setType('');
-                    setCategoryId('');
-                  }}
-                  className="ml-1.5 opacity-60 hover:opacity-100"
-                >
-                  ✕
-                </button>
-              </span>
+              <GlowBadge
+                color="sky"
+                className="cursor-pointer"
+                onClick={() => {
+                  setType('');
+                  setCategoryId('');
+                }}
+              >
+                {type} ×
+              </GlowBadge>
             )}
             {categoryId && (
-              <span className="text-xs bg-emerald-500/10 text-emerald-400 rounded-full px-2.5 py-1">
-                {categories.find((c) => c.id === categoryId)?.name}
-                <button
-                  onClick={() => setCategoryId('')}
-                  className="ml-1.5 opacity-60 hover:opacity-100"
-                >
-                  ✕
-                </button>
-              </span>
+              <GlowBadge
+                color="sky"
+                className="cursor-pointer"
+                onClick={() => setCategoryId('')}
+              >
+                {categories.find((c) => c.id === categoryId)?.name} ×
+              </GlowBadge>
             )}
             {search && (
-              <span className="text-xs bg-emerald-500/10 text-emerald-400 rounded-full px-2.5 py-1">
-                "{search}"
-                <button
-                  onClick={() => {
-                    setSearch('');
-                    setSearchInput('');
-                  }}
-                  className="ml-1.5 opacity-60 hover:opacity-100"
-                >
-                  ✕
-                </button>
-              </span>
+              <GlowBadge
+                color="sky"
+                className="cursor-pointer"
+                onClick={() => {
+                  setSearch('');
+                  setSearchInput('');
+                }}
+              >
+                &ldquo;{search}&rdquo; ×
+              </GlowBadge>
             )}
           </>
         )}

@@ -15,14 +15,16 @@ interface Props {
   children: ReactNode;
   dot?: boolean;
   className?: string;
+  onClick?: () => void;
 }
 
-export function GlowBadge({ color, children, dot = false, className = '' }: Props) {
+export function GlowBadge({ color, children, dot = false, className = '', onClick }: Props) {
   const c = colorMap[color];
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${className}`}
       style={{ background: c.bg, border: `1px solid ${c.border}`, color: c.text }}
+      onClick={onClick}
     >
       {dot && (
         <span
