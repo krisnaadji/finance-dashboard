@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useAccountId, useAccountRole } from '@/components/AccountSwitcher';
 import { formatIDR, startOfMonth, today } from '@/lib/utils';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { GlassButton } from '@/components/ui/GlassButton';
 
 interface Category {
   id: string;
@@ -201,71 +203,72 @@ export default function CategoriesPage() {
 
     return (
       <li className="py-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-sm text-white/80">{c.name}</span>
-          <div className="flex items-center gap-2 shrink-0">
-            {c.is_custom ? (
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 rounded px-1.5 py-0.5">
-                Custom
-              </span>
-            ) : (
-              <span className="text-[10px] text-white/20">Default</span>
-            )}
-            {/* Edit: show for owner on expense cats (budget) or custom cats (name) */}
-            {isOwner && (c.type === 'expense' || c.is_custom) && (
-              <button
-                onClick={() => startEdit(c)}
-                className="text-xs text-white/30 hover:text-white/60"
-              >
-                Edit
-              </button>
-            )}
-            {/* Delete: custom only */}
-            {isOwner && c.is_custom && (
-              <button
-                onClick={() => deleteCategory(c.id)}
-                disabled={deleting === c.id}
-                className="text-xs text-red-400/60 hover:text-red-400 disabled:opacity-40"
-              >
-                {deleting === c.id ? '...' : 'Delete'}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Budget progress bar */}
-        {budgetInfo && (
-          <div className="mt-1.5">
-            <div className="flex justify-between items-center mb-1">
-              <span className={`text-[10px] ${budgetInfo.over ? 'text-red-400' : 'text-white/30'}`}>
-                Rp{formatIDR(budgetInfo.spent)} / Rp{formatIDR(budgetInfo.budget.amount)}
-                {budgetInfo.over && ' ⚠️'}
-              </span>
-              <span className={`text-[10px] ${budgetInfo.over ? 'text-red-400' : 'text-white/30'}`}>
-                {Math.round((budgetInfo.spent / budgetInfo.budget.amount) * 100)}%
-              </span>
-            </div>
-            <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${
-                  budgetInfo.over
-                    ? 'bg-red-500'
-                    : budgetInfo.pct >= 80
-                      ? 'bg-amber-500'
-                      : 'bg-emerald-500'
-                }`}
-                style={{
-                  width: `${Math.min((budgetInfo.spent / budgetInfo.budget.amount) * 100, 100)}%`,
-                }}
-              />
+        <GlassCard className="p-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm text-white/80">{c.name}</span>
+            <div className="flex items-center gap-2 shrink-0">
+              {c.is_custom ? (
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 rounded px-1.5 py-0.5">
+                  Custom
+                </span>
+              ) : (
+                <span className="text-[10px] text-white/20">Default</span>
+              )}
+              {/* Edit: show for owner on expense cats (budget) or custom cats (name) */}
+              {isOwner && (c.type === 'expense' || c.is_custom) && (
+                <GlassButton variant="ghost" onClick={() => startEdit(c)}>Edit</GlassButton>
+              )}
+              {/* Delete: custom only */}
+              {isOwner && c.is_custom && (
+                <GlassButton
+                  variant="danger"
+                  onClick={() => deleteCategory(c.id)}
+                  disabled={deleting === c.id}
+                >
+                  {deleting === c.id ? '...' : 'Delete'}
+                </GlassButton>
+              )}
             </div>
           </div>
-        )}
 
-        {/* Hint for owner on expense cats with no budget */}
-        {!budgetInfo && c.type === 'expense' && isOwner && (
-          <p className="text-[10px] text-white/15 mt-0.5">No budget · click Edit to set</p>
-        )}
+          {/* Budget progress bar */}
+          {budgetInfo && (
+            <div className="mt-1.5">
+              <div className="flex justify-between items-center mb-1">
+                <span className={`text-[10px] ${budgetInfo.over ? 'text-red-400' : 'text-white/30'}`}>
+                  Rp{formatIDR(budgetInfo.spent)} / Rp{formatIDR(budgetInfo.budget.amount)}
+                  {budgetInfo.over && ' ⚠️'}
+                </span>
+                <span className={`text-[10px] ${budgetInfo.over ? 'text-red-400' : 'text-white/30'}`}>
+                  {Math.round((budgetInfo.spent / budgetInfo.budget.amount) * 100)}%
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(budgetInfo.pct, 100)}%`,
+                    background: budgetInfo.over
+                      ? 'linear-gradient(90deg, #ef4444, #f87171)'
+                      : budgetInfo.pct >= 80
+                      ? 'linear-gradient(90deg, #f59e0b, #fbbf24)'
+                      : 'linear-gradient(90deg, #10b981, #34d399)',
+                    boxShadow: budgetInfo.over
+                      ? '0 0 6px rgba(239,68,68,0.5)'
+                      : budgetInfo.pct >= 80
+                      ? '0 0 6px rgba(245,158,11,0.5)'
+                      : '0 0 6px rgba(16,185,129,0.5)',
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Hint for owner on expense cats with no budget */}
+          {!budgetInfo && c.type === 'expense' && isOwner && (
+            <p className="text-[10px] text-white/15 mt-0.5">No budget · click Edit to set</p>
+          )}
+        </GlassCard>
       </li>
     );
   }
