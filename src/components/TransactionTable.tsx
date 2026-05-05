@@ -104,7 +104,7 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
     return (
       <div
         className={
-          mobile ? 'space-y-2 w-full overflow-hidden' : 'flex flex-wrap gap-2 items-center'
+          mobile ? 'space-y-2 w-full' : 'flex flex-wrap gap-2 items-center'
         }
       >
         <input
