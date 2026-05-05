@@ -21,6 +21,8 @@ export default async function ProtectedLayout({ children }: { children: React.Re
 
   return (
     <div className="relative z-[1] min-h-screen text-[#f1f5f9] flex" style={{ background: 'var(--bg-base)' }}>
+      {/* Film grain overlay */}
+      <div aria-hidden className="grain" />
       {/* Desktop Sidebar */}
       <aside
         className="hidden md:flex w-56 shrink-0 flex-col"
@@ -38,20 +40,21 @@ export default async function ProtectedLayout({ children }: { children: React.Re
         <div className="px-5 py-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
           <div className="flex items-center gap-2.5">
             <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white"
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white animate-logo-glow"
               style={{
                 background: 'linear-gradient(135deg, #10b981, #0ea5e9)',
-                boxShadow: '0 0 14px rgba(16,185,129,0.35)',
               }}
             >
               F
             </div>
             <span
-              className="font-semibold text-sm tracking-tight"
+              className="font-bold text-sm tracking-tight"
               style={{
+                fontFamily: 'var(--font-display)',
                 background: 'linear-gradient(135deg, #f1f5f9, #34d399)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
+                letterSpacing: '0.02em',
               }}
             >
               FinanceBot

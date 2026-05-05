@@ -15,15 +15,16 @@ export function SummaryCards({ income, expense, net, topExpenseCategory, topExpe
   const t = useTranslations('summary');
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-      <Card label={t('income')}     value={formatIDR(income)}  accent="emerald" />
-      <Card label={t('expense')}    value={formatIDR(expense)} accent="red" />
-      <Card label={t('balance')}    value={formatIDR(net)}     accent="sky" />
+      <Card label={t('income')}  value={formatIDR(income)}  accent="emerald" index={0} />
+      <Card label={t('expense')} value={formatIDR(expense)} accent="red"     index={1} />
+      <Card label={t('balance')} value={formatIDR(net)}     accent="sky"     index={2} />
       {topExpenseCategory && (
         <Card
           label={t('topExpense')}
           value={topExpenseCategory}
           sub={formatIDR(topExpenseAmount ?? 0)}
           accent="amber"
+          index={3}
         />
       )}
     </div>
@@ -44,18 +45,30 @@ function Card({
   value,
   sub,
   accent,
+  index = 0,
 }: {
   label: string;
   value: string;
   sub?: string;
   accent: Accent;
+  index?: number;
 }) {
   const { text, dot, shadow } = accentTokens[accent];
   return (
-    <GlassCard tint={accent} className="p-4 md:p-5">
+    <GlassCard
+      tint={accent}
+      className="p-4 md:p-5 animate-fade-up"
+      style={{ animationDelay: `${index * 75}ms` }}
+    >
+      {/* Accent top-line */}
+      <div
+        aria-hidden
+        className="absolute top-0 left-4 right-4 h-px rounded-full"
+        style={{ background: `linear-gradient(90deg, transparent, ${dot}, transparent)`, opacity: 0.5 }}
+      />
       <p
-        className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest mb-2"
-        style={{ color: 'rgba(241,245,249,0.3)' }}
+        className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest mb-3"
+        style={{ color: 'rgba(241,245,249,0.3)', fontFamily: 'var(--font-display)' }}
       >
         <span
           aria-hidden
@@ -64,10 +77,17 @@ function Card({
         />
         {label}
       </p>
-      <p className="text-lg md:text-xl font-semibold tracking-tight" style={{ color: text }}>
+      <p
+        className="text-xl md:text-2xl tracking-tight leading-none"
+        style={{ color: text, fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}
+      >
         {value}
       </p>
-      {sub && <p className="text-xs mt-1" style={{ color: 'rgba(241,245,249,0.3)' }}>{sub}</p>}
+      {sub && (
+        <p className="text-xs mt-1.5" style={{ color: 'rgba(241,245,249,0.3)' }}>
+          {sub}
+        </p>
+      )}
     </GlassCard>
   );
 }
