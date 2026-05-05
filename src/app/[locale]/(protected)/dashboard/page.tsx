@@ -1,12 +1,14 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { useAccountId } from '@/components/AccountSwitcher';
 import { SummaryCards } from '@/components/SummaryCards';
 import { IncomeExpenseChart } from '@/components/IncomeExpenseChart';
 import { CategoryPieChart } from '@/components/CategoryPieChart';
 import { AddTransactionModal } from '@/components/AddTransactionModal';
 import { startOfMonth, today, formatIDR, formatDate } from '@/lib/utils';
+import { GlowBadge } from '@/components/ui/GlowBadge';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { GlassButton } from '@/components/ui/GlassButton';
 
 interface TopTransaction {
   id: string;
@@ -40,8 +42,6 @@ interface Summary {
 }
 
 export default function DashboardPage() {
-  const t = useTranslations('summary');
-  const tTxn = useTranslations('transactions');
   const accountId = useAccountId();
 
   const [from, setFrom] = useState(startOfMonth());
@@ -127,17 +127,21 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-2">
-        <div className="flex items-center justify-between sm:justify-start gap-3">
-          <h1 className="text-xl font-semibold text-white">{t('title')}</h1>
-          <button
-            onClick={() => setAddOpen(true)}
-            className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-sm font-medium hover:bg-emerald-500 whitespace-nowrap"
-          >
-            + {tTxn('add')}
-          </button>
+      {/* Page header */}
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="text-xl md:text-2xl font-semibold tracking-tight" style={{ color: '#f1f5f9' }}>
+            Dashboard
+          </h1>
+          <p className="text-xs mt-0.5" style={{ color: 'rgba(241,245,249,0.3)' }}>{now}</p>
         </div>
-        <p className="text-xs text-white/40">{now}</p>
+        <GlassButton variant="primary" onClick={() => setAddOpen(true)}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M6 1v10M1 6h10" />
+          </svg>
+          <span className="hidden sm:inline">Add Transaction</span>
+          <span className="sm:hidden">Add</span>
+        </GlassButton>
       </div>
 
       <AddTransactionModal
@@ -190,66 +194,66 @@ export default function DashboardPage() {
 
           {/* Budget Overview */}
           {budgetOverview.length > 0 && (
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 mt-6">
-              <h2 className="text-sm font-medium text-white/60 mb-4">📊 Budget Overview</h2>
+            <GlassCard className="p-4 mt-6">
+              <h2 className="text-sm font-medium mb-4" style={{ color: 'rgba(241,245,249,0.55)' }}>
+                Budget Overview
+              </h2>
               <div className="space-y-3">
                 {budgetOverview.map(
                   (b) =>
                     b && (
                       <div key={b.id}>
-                        <div className="flex justify-between items-center mb-1">
+                        <div className="flex justify-between items-center mb-1.5">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm text-white/80">{b.name}</span>
+                            <span className="text-sm" style={{ color: 'rgba(241,245,249,0.8)' }}>{b.name}</span>
                             {b.over && (
-                              <span className="text-[10px] bg-red-500/10 text-red-400 rounded px-1.5 py-0.5">
-                                Over budget
-                              </span>
+                              <GlowBadge color="red">Over budget</GlowBadge>
                             )}
                             {!b.over && b.pct >= 80 && (
-                              <span className="text-[10px] bg-amber-500/10 text-amber-400 rounded px-1.5 py-0.5">
-                                Near limit
-                              </span>
+                              <GlowBadge color="amber">Near limit</GlowBadge>
                             )}
                           </div>
                           <div className="text-right">
                             <span
-                              className={`text-xs font-medium ${
-                                b.over
-                                  ? 'text-red-400'
-                                  : b.pct >= 80
-                                    ? 'text-amber-400'
-                                    : 'text-white/60'
-                              }`}
+                              className="text-xs font-medium"
+                              style={{ color: b.over ? '#f87171' : b.pct >= 80 ? '#fbbf24' : 'rgba(241,245,249,0.55)' }}
                             >
-                              Rp{formatIDR(b.spent)}
+                              {formatIDR(b.spent)}
                             </span>
-                            <span className="text-xs text-white/30"> / Rp{formatIDR(b.limit)}</span>
+                            <span className="text-xs" style={{ color: 'rgba(241,245,249,0.25)' }}>
+                              {' '}/ {formatIDR(b.limit)}
+                            </span>
                           </div>
                         </div>
-                        <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                        {/* Gradient progress bar */}
+                        <div
+                          className="h-1.5 rounded-full overflow-hidden"
+                          style={{ background: 'rgba(255,255,255,0.06)' }}
+                        >
                           <div
-                            className={`h-full rounded-full transition-all ${
-                              b.over
-                                ? 'bg-red-500'
+                            className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${Math.min(b.pct, 100)}%`,
+                              background: b.over
+                                ? 'linear-gradient(90deg, #ef4444, #f87171)'
                                 : b.pct >= 80
-                                  ? 'bg-amber-500'
-                                  : 'bg-emerald-500'
-                            }`}
-                            style={{ width: `${Math.min(b.pct, 100)}%` }}
+                                ? 'linear-gradient(90deg, #f59e0b, #fbbf24)'
+                                : 'linear-gradient(90deg, #10b981, #34d399)',
+                              boxShadow: b.over
+                                ? '0 0 6px rgba(239,68,68,0.5)'
+                                : b.pct >= 80
+                                ? '0 0 6px rgba(245,158,11,0.5)'
+                                : '0 0 6px rgba(16,185,129,0.5)',
+                            }}
                           />
                         </div>
                         <div className="flex justify-between mt-0.5">
-                          <span className="text-[10px] text-white/20">
-                            Rp{formatIDR(Math.max(b.limit - b.spent, 0))} remaining
+                          <span className="text-[10px]" style={{ color: 'rgba(241,245,249,0.2)' }}>
+                            {formatIDR(Math.max(b.limit - b.spent, 0))} remaining
                           </span>
                           <span
-                            className={`text-[10px] ${
-                              b.over
-                                ? 'text-red-400'
-                                : b.pct >= 80
-                                  ? 'text-amber-400'
-                                  : 'text-white/20'
-                            }`}
+                            className="text-[10px]"
+                            style={{ color: b.over ? '#f87171' : b.pct >= 80 ? '#fbbf24' : 'rgba(241,245,249,0.2)' }}
                           >
                             {Math.round(b.pct)}%
                           </span>
@@ -258,53 +262,57 @@ export default function DashboardPage() {
                     ),
                 )}
               </div>
-            </div>
+            </GlassCard>
           )}
 
           {/* Top transactions */}
           {(summary.topExpenses.length > 0 || summary.topIncomes.length > 0) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
               {summary.topExpenses.length > 0 && (
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
-                  <h2 className="text-sm font-medium text-white/60 mb-3">🔺 Top Expenses</h2>
+                <GlassCard className="p-4">
+                  <h2 className="text-sm font-medium mb-3" style={{ color: 'rgba(241,245,249,0.55)' }}>
+                    Top Expenses
+                  </h2>
                   <div className="space-y-2">
                     {summary.topExpenses.map((txn, i) => (
                       <div key={txn.id} className="flex items-center gap-3">
-                        <span className="text-xs text-white/20 w-4">{i + 1}</span>
+                        <span className="text-xs w-4" style={{ color: 'rgba(241,245,249,0.2)' }}>{i + 1}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-white/80 truncate">{txn.description}</p>
-                          <p className="text-xs text-white/30">
+                          <p className="text-sm truncate" style={{ color: 'rgba(241,245,249,0.8)' }}>{txn.description}</p>
+                          <p className="text-xs" style={{ color: 'rgba(241,245,249,0.3)' }}>
                             {txn.category} · {formatDate(txn.date)}
                           </p>
                         </div>
-                        <span className="text-sm font-medium text-red-400 whitespace-nowrap">
+                        <span className="text-sm font-medium whitespace-nowrap" style={{ color: '#f87171' }}>
                           -{formatIDR(txn.amount)}
                         </span>
                       </div>
                     ))}
                   </div>
-                </div>
+                </GlassCard>
               )}
               {summary.topIncomes.length > 0 && (
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
-                  <h2 className="text-sm font-medium text-white/60 mb-3">💰 Top Incomes</h2>
+                <GlassCard className="p-4">
+                  <h2 className="text-sm font-medium mb-3" style={{ color: 'rgba(241,245,249,0.55)' }}>
+                    Top Incomes
+                  </h2>
                   <div className="space-y-2">
                     {summary.topIncomes.map((txn, i) => (
                       <div key={txn.id} className="flex items-center gap-3">
-                        <span className="text-xs text-white/20 w-4">{i + 1}</span>
+                        <span className="text-xs w-4" style={{ color: 'rgba(241,245,249,0.2)' }}>{i + 1}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-white/80 truncate">{txn.description}</p>
-                          <p className="text-xs text-white/30">
+                          <p className="text-sm truncate" style={{ color: 'rgba(241,245,249,0.8)' }}>{txn.description}</p>
+                          <p className="text-xs" style={{ color: 'rgba(241,245,249,0.3)' }}>
                             {txn.category} · {formatDate(txn.date)}
                           </p>
                         </div>
-                        <span className="text-sm font-medium text-emerald-400 whitespace-nowrap">
+                        <span className="text-sm font-medium whitespace-nowrap" style={{ color: '#34d399' }}>
                           +{formatIDR(txn.amount)}
                         </span>
                       </div>
                     ))}
                   </div>
-                </div>
+                </GlassCard>
               )}
             </div>
           )}
