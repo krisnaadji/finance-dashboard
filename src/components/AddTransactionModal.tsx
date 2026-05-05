@@ -149,8 +149,8 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
     >
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md">
       <div
-        className="w-full p-5 shadow-2xl rounded-2xl border backdrop-blur-md"
-        style={{ background: 'rgba(8,12,16,0.95)', borderColor: 'rgba(255,255,255,0.12)' }}
+        className="w-full p-5 shadow-2xl rounded-2xl border"
+        style={{ background: 'rgba(8,12,16,0.97)', borderColor: 'rgba(255,255,255,0.12)' }}
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-white">{t('title')}</h2>
@@ -218,7 +218,7 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
 
             {/* Date + Amount */}
             <div className="grid grid-cols-2 gap-2">
-              <div>
+              <div className="min-w-0">
                 <label className="block text-xs text-white/40 mb-1">{t('date')}</label>
                 <input
                   type="date"
@@ -228,7 +228,7 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
                   className="w-full rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-2 text-sm [color-scheme:dark]"
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="block text-xs text-white/40 mb-1">{t('amount')}</label>
                 <input
                   type="number"
