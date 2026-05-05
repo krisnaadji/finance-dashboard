@@ -16,6 +16,7 @@ export function NavLink({ href, icon, label }: Props) {
   return (
     <Link
       href={href}
+      aria-current={isActive ? 'page' : undefined}
       className="flex flex-col md:flex-row items-center md:items-start gap-1 md:gap-2.5 flex-1 md:flex-none
         px-2 md:px-3 py-2 rounded-none md:rounded-lg text-xs md:text-sm transition-all duration-150
         justify-center md:justify-start border border-transparent"
