@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { formatIDR, today } from '@/lib/utils';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { GlassButton } from '@/components/ui/GlassButton';
 
 interface Category {
   id: string;
@@ -146,9 +148,10 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
       onClick={onClose}
     >
-      <div
-        className="w-full max-w-md rounded-2xl border border-white/[0.08] bg-[#1a1a1f] p-5 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
+      <div onClick={(e) => e.stopPropagation()}>
+      <GlassCard
+        className="w-full max-w-md p-5 shadow-2xl"
+        style={{ background: 'rgba(8,12,16,0.95)', borderColor: 'rgba(255,255,255,0.12)' }}
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-white">{t('title')}</h2>
@@ -178,12 +181,7 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
               {formatIDR(warning.limit)} ({warning.pct}%)
             </p>
             <div className="mt-3 flex justify-end">
-              <button
-                onClick={onClose}
-                className="rounded-lg bg-white/[0.08] border border-white/[0.12] text-white/80 px-3 py-1 text-xs hover:bg-white/[0.12]"
-              >
-                OK
-              </button>
+              <GlassButton onClick={onClose}>OK</GlassButton>
             </div>
           </div>
         )}
@@ -287,23 +285,16 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
             )}
 
             <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg border border-white/[0.1] bg-white/[0.04] text-white/60 px-4 py-2 text-sm hover:bg-white/[0.08]"
-              >
+              <GlassButton type="button" variant="ghost" onClick={onClose}>
                 {t('cancel')}
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm font-medium hover:bg-emerald-500 disabled:opacity-40 transition-colors"
-              >
+              </GlassButton>
+              <GlassButton type="submit" variant="primary" disabled={saving} className="px-4 py-2">
                 {saving ? t('saving') : t('save')}
-              </button>
+              </GlassButton>
             </div>
           </form>
         )}
+      </GlassCard>
       </div>
     </div>
   );
