@@ -225,7 +225,7 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
-                className="w-full rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-2 text-sm [color-scheme:dark]"
+                className="w-full rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-2 text-sm [color-scheme:dark] appearance-none"
               />
             </div>
 

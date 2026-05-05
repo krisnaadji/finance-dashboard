@@ -123,7 +123,7 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
         <input
           className={inp + (mobile ? '' : ' w-36')}
           type="date"
-          style={{ colorScheme: 'dark', maxWidth: '100%' }}
+          style={{ colorScheme: 'dark', maxWidth: '100%', appearance: 'none', WebkitAppearance: 'none' }}
           value={editForm.date}
           onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
         />
