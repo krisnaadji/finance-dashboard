@@ -216,32 +216,32 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
               </div>
             </div>
 
-            {/* Date + Amount */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="min-w-0">
-                <label className="block text-xs text-white/40 mb-1">{t('date')}</label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  required
-                  className="w-full rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-2 text-sm [color-scheme:dark]"
-                />
-              </div>
-              <div className="min-w-0">
-                <label className="block text-xs text-white/40 mb-1">{t('amount')}</label>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="any"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  required
-                  placeholder="0"
-                  className="w-full rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-2 text-sm [appearance:textfield]"
-                />
-              </div>
+            {/* Date */}
+            <div>
+              <label className="block text-xs text-white/40 mb-1">{t('date')}</label>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                required
+                className="w-full rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-2 text-sm [color-scheme:dark]"
+              />
+            </div>
+
+            {/* Amount */}
+            <div>
+              <label className="block text-xs text-white/40 mb-1">{t('amount')}</label>
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="any"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                required
+                placeholder="0"
+                className="w-full rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-2 text-sm [appearance:textfield]"
+              />
             </div>
 
             {/* Category */}
