@@ -316,7 +316,7 @@ export default function TransactionsPage() {
 
       {loading && <p className="text-white/30 text-sm animate-pulse mb-3">Loading...</p>}
 
-      <div className="rounded-xl border border-white/[0.06] bg-white/[0.03]">
+      <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] overflow-hidden">
         <TransactionTable
           transactions={txns}
           onDelete={(id) => setTxns((prev) => prev.filter((t) => t.id !== id))}

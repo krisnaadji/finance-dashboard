@@ -144,9 +144,10 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-start sm:items-center justify-center bg-black/70 p-4 pt-8 sm:pt-4 overflow-y-auto"
+      className="fixed inset-0 z-[200] overflow-y-auto bg-black/70"
       onClick={onClose}
     >
+      <div className="flex min-h-full items-start sm:items-center justify-center p-4 pt-8 sm:pt-4">
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md">
       <div
         className="w-full p-5 shadow-2xl rounded-2xl border"
@@ -293,6 +294,7 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
             </div>
           </form>
         )}
+      </div>
       </div>
       </div>
     </div>
