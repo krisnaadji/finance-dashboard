@@ -68,7 +68,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
         {/* Nav Links */}
         <nav className="flex-1 px-3 py-3 space-y-0.5">
           <NavLink href="/dashboard" icon="▦" label="Dashboard" />
-          <NavLink href="/transactions" icon="↕" label="Transactions" />
+          <NavLink href="/transactions" icon="⇅" label="Transactions" />
           <NavLink href="/accounts" icon="◎" label="Accounts" />
           <NavLink href="/categories" icon="⊞" label="Categories" />
         </nav>
@@ -115,7 +115,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
           }}
         >
           <NavLink href="/dashboard" icon="▦" label="Dashboard" />
-          <NavLink href="/transactions" icon="↕" label="Txn" />
+          <NavLink href="/transactions" icon="⇅" label="Txn" />
           <NavLink href="/accounts" icon="◎" label="Accounts" />
           <NavLink href="/categories" icon="⊞" label="Categories" />
         </nav>
