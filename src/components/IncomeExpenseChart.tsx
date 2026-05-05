@@ -1,16 +1,11 @@
 'use client';
 import { useTranslations } from 'next-intl';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import { formatIDR } from '@/lib/utils';
+import { GlassCard } from '@/components/ui/GlassCard';
 
 interface Props {
   byMonth: Record<string, { income: number; expense: number }>;
@@ -23,39 +18,55 @@ export function IncomeExpenseChart({ byMonth, title }: Props) {
   const data = Object.entries(byMonth)
     .sort()
     .map(([month, vals]) => ({
-      month: new Date(month + '-01').toLocaleDateString('id-ID', {
-        month: 'short',
-        year: '2-digit',
-      }),
+      month: new Date(month + '-01').toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }),
       [t('income')]: vals.income,
       [t('expense')]: vals.expense,
     }));
 
   return (
-    <div className="rounded-xl border border-white/[0.06] p-5 bg-white/[0.03] overflow-hidden">
-      <h3 className="text-sm font-medium text-white/60 mb-4">
+    <GlassCard className="p-5 overflow-hidden">
+      <h3 className="text-sm font-medium mb-4" style={{ color: 'rgba(241,245,249,0.55)' }}>
         {title ?? `${t('income')} vs ${t('expense')}`}
       </h3>
       <ResponsiveContainer width="100%" height={240}>
         <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+          <defs>
+            <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#34d399" stopOpacity={0.9} />
+              <stop offset="100%" stopColor="#10b981" stopOpacity={0.4} />
+            </linearGradient>
+            <linearGradient id="expenseGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#f87171" stopOpacity={0.8} />
+              <stop offset="100%" stopColor="#ef4444" stopOpacity={0.3} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
           <XAxis
             dataKey="month"
-            tick={{ fontSize: 11, fill: 'rgba(255,255,255,0.4)' }}
-            stroke="rgba(255,255,255,0.1)"
+            tick={{ fontSize: 11, fill: 'rgba(241,245,249,0.3)' }}
+            stroke="rgba(255,255,255,0.06)"
           />
           <YAxis
             tickFormatter={(v) => 'Rp' + v / 1000 + 'k'}
-            tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.4)' }}
-            stroke="rgba(255,255,255,0.1)"
+            tick={{ fontSize: 10, fill: 'rgba(241,245,249,0.3)' }}
+            stroke="rgba(255,255,255,0.06)"
             width={70}
           />
-          <Tooltip formatter={(value) => [formatIDR(Number(value)), '']} />
-          <Legend wrapperStyle={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }} />
-          <Bar dataKey={t('income')} fill="#22c55e" radius={[4, 4, 0, 0]} />
-          <Bar dataKey={t('expense')} fill="#ef4444" radius={[4, 4, 0, 0]} />
+          <Tooltip
+            formatter={(value) => [formatIDR(Number(value)), '']}
+            contentStyle={{
+              background: 'rgba(8,12,16,0.95)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 10,
+              color: '#f1f5f9',
+              backdropFilter: 'blur(12px)',
+            }}
+          />
+          <Legend wrapperStyle={{ color: 'rgba(241,245,249,0.45)', fontSize: 12 }} />
+          <Bar dataKey={t('income')}  fill="url(#incomeGrad)"  radius={[4, 4, 0, 0]} />
+          <Bar dataKey={t('expense')} fill="url(#expenseGrad)" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
-    </div>
+    </GlassCard>
   );
 }

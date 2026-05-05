@@ -2,17 +2,9 @@
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useTranslations } from 'next-intl';
 import { formatIDR } from '@/lib/utils';
+import { GlassCard } from '@/components/ui/GlassCard';
 
-const COLORS = [
-  '#3b82f6',
-  '#f59e0b',
-  '#10b981',
-  '#ef4444',
-  '#8b5cf6',
-  '#06b6d4',
-  '#f97316',
-  '#84cc16',
-];
+const COLORS = ['#10b981', '#0ea5e9', '#a78bfa', '#fbbf24', '#f87171', '#06b6d4', '#f97316', '#84cc16'];
 
 interface Props {
   byCategory: Record<string, number>;
@@ -27,11 +19,12 @@ export function CategoryPieChart({ byCategory }: Props) {
   if (!data.length) return null;
 
   return (
-    <div className="rounded-xl border border-white/[0.06] p-5 bg-white/[0.03] overflow-hidden">
-      <h3 className="text-sm font-medium text-white/60 mb-4">{t('expense')} by Category</h3>
+    <GlassCard className="p-5 overflow-hidden">
+      <h3 className="text-sm font-medium mb-4" style={{ color: 'rgba(241,245,249,0.55)' }}>
+        {t('expense')} by Category
+      </h3>
       <ResponsiveContainer width="100%" height={260}>
         <PieChart>
-          {/* No inline labels — they overflow on mobile. Tooltip on tap/hover instead. */}
           <Pie
             data={data}
             dataKey="value"
@@ -49,16 +42,17 @@ export function CategoryPieChart({ byCategory }: Props) {
           <Tooltip
             formatter={(value, name) => [formatIDR(Number(value)), name]}
             contentStyle={{
-              background: '#1a1a1f',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 8,
-              color: '#fff',
+              background: 'rgba(8,12,16,0.95)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 10,
+              color: '#f1f5f9',
+              backdropFilter: 'blur(12px)',
             }}
           />
           <Legend
             iconType="circle"
             iconSize={8}
-            wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', paddingTop: 8 }}
+            wrapperStyle={{ fontSize: 11, color: 'rgba(241,245,249,0.45)', paddingTop: 8 }}
             formatter={(value, entry: any) => {
               const total = data.reduce((s, d) => s + d.value, 0);
               const pct = total ? ((entry.payload.value / total) * 100).toFixed(0) : 0;
@@ -67,6 +61,6 @@ export function CategoryPieChart({ byCategory }: Props) {
           />
         </PieChart>
       </ResponsiveContainer>
-    </div>
+    </GlassCard>
   );
 }
