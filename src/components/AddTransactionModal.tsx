@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { formatIDR, today } from '@/lib/utils';
-import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassButton } from '@/components/ui/GlassButton';
 
 interface Category {
@@ -145,12 +144,12 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/70 p-4 pt-8 sm:pt-4 overflow-y-auto"
+      className="fixed inset-0 z-[200] flex items-start sm:items-center justify-center bg-black/70 p-4 pt-8 sm:pt-4 overflow-y-auto"
       onClick={onClose}
     >
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md">
-      <GlassCard
-        className="w-full p-5 shadow-2xl"
+      <div
+        className="w-full p-5 shadow-2xl rounded-2xl border backdrop-blur-md"
         style={{ background: 'rgba(8,12,16,0.95)', borderColor: 'rgba(255,255,255,0.12)' }}
       >
         <div className="flex items-center justify-between mb-4">
@@ -294,7 +293,7 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
             </div>
           </form>
         )}
-      </GlassCard>
+      </div>
       </div>
     </div>
   );
