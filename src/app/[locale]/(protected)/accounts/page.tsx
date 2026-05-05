@@ -3,6 +3,9 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { LinkCodeModal } from '@/components/LinkCodeModal';
 import { useAccountRole, refreshAccountSwitcher } from '@/components/AccountSwitcher';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { GlowBadge } from '@/components/ui/GlowBadge';
+import { GlassButton } from '@/components/ui/GlassButton';
 
 interface Member {
   id: string;
@@ -205,7 +208,7 @@ export default function AccountsPage() {
       {/* Accounts List */}
       <div className="space-y-4">
         {accounts.map((acc) => (
-          <div key={acc.id} className="rounded-xl border border-white/[0.06] p-5 bg-white/[0.03]">
+          <GlassCard key={acc.id} tint={acc.type === 'group' ? 'sky' : 'emerald'} className="p-4">
             {editingId === acc.id ? (
               <div className="space-y-3">
                 <input
@@ -226,18 +229,12 @@ export default function AccountsPage() {
                   </option>
                 </select>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => saveEdit(acc.id)}
-                    className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-sm"
-                  >
+                  <GlassButton variant="ghost" onClick={() => saveEdit(acc.id)}>
                     Save
-                  </button>
-                  <button
-                    onClick={() => setEditingId(null)}
-                    className="rounded-lg bg-white/[0.06] text-white/60 px-3 py-1.5 text-sm"
-                  >
+                  </GlassButton>
+                  <GlassButton variant="ghost" onClick={() => setEditingId(null)}>
                     Cancel
-                  </button>
+                  </GlassButton>
                 </div>
               </div>
             ) : (
@@ -247,28 +244,29 @@ export default function AccountsPage() {
                   <span className="text-xs bg-white/[0.08] text-white/50 rounded-full px-2 py-0.5">
                     {acc.type}
                   </span>
-                  {acc.wa_chat_id && (
-                    <span className="text-xs text-emerald-400">✓ WhatsApp linked</span>
-                  )}
+                  {acc.wa_chat_id
+                    ? <GlowBadge color="emerald" dot>Linked</GlowBadge>
+                    : <GlowBadge color="red">Not linked</GlowBadge>
+                  }
                   {acc.role === 'owner' && (
-                    <div className="ml-auto flex gap-3">
-                      <button
+                    <div className="ml-auto flex gap-2">
+                      <GlassButton
+                        variant="ghost"
                         onClick={() => {
                           setEditingId(acc.id);
                           setEditName(acc.name);
                           setEditType(acc.type);
                         }}
-                        className="text-xs text-white/30 hover:text-white/60"
                       >
                         Edit
-                      </button>
-                      <button
+                      </GlassButton>
+                      <GlassButton
+                        variant="danger"
                         onClick={() => deleteAccount(acc.id)}
                         disabled={deleting === acc.id}
-                        className="text-xs text-red-400/60 hover:text-red-400 disabled:opacity-40"
                       >
                         {deleting === acc.id ? '...' : 'Delete'}
-                      </button>
+                      </GlassButton>
                     </div>
                   )}
                 </div>
@@ -282,25 +280,25 @@ export default function AccountsPage() {
                     {/* Invite button — owner only */}
                     {acc.role === 'owner' && (
                       <>
-                        <button
+                        <GlassButton
+                          variant="ghost"
                           onClick={() => generateInvite(acc.id)}
                           disabled={inviting === acc.id}
-                          className="text-sm text-emerald-400 hover:text-emerald-300 disabled:opacity-40"
                         >
                           {inviting === acc.id ? 'Generating...' : '+ Invite Member'}
-                        </button>
+                        </GlassButton>
                         {inviteUrl && (
                           <div className="mt-2 p-3 bg-white/[0.04] rounded-lg">
                             <p className="text-xs text-white/40 mb-1">
                               Share this link (expires {inviteExpiry}):
                             </p>
                             <p className="text-xs text-emerald-400 break-all">{inviteUrl}</p>
-                            <button
+                            <GlassButton
+                              variant="ghost"
                               onClick={() => navigator.clipboard.writeText(inviteUrl)}
-                              className="text-xs text-white/30 hover:text-white/60 mt-1"
                             >
-                              Copy
-                            </button>
+                              Copy link
+                            </GlassButton>
                           </div>
                         )}
                       </>
@@ -332,7 +330,7 @@ export default function AccountsPage() {
                 )}
               </>
             )}
-          </div>
+          </GlassCard>
         ))}
       </div>
     </div>
