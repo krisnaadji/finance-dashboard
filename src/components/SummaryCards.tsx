@@ -68,7 +68,7 @@ function Card({
       />
       <p
         className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest mb-3"
-        style={{ color: 'rgba(241,245,249,0.3)', fontFamily: 'var(--font-display)' }}
+        style={{ color: 'rgba(241,245,249,0.3)' }}
       >
         <span
           aria-hidden
@@ -78,8 +78,8 @@ function Card({
         {label}
       </p>
       <p
-        className="text-xl md:text-2xl tracking-tight leading-none"
-        style={{ color: text, fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}
+        className="text-xl md:text-2xl font-semibold tracking-tight leading-none"
+        style={{ color: text }}
       >
         {value}
       </p>

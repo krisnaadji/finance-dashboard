@@ -47,24 +47,17 @@ export default function LoginPage() {
         <div className="flex justify-center mb-6 animate-scale-in" style={{ animationDelay: '0ms' }}>
           <div
             className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl font-bold text-white animate-logo-glow"
-            style={{
-              background: 'linear-gradient(135deg, #10b981, #0ea5e9)',
-              fontFamily: 'var(--font-display)',
-            }}
+            style={{ background: 'linear-gradient(135deg, #10b981, #0ea5e9)' }}
           >
             F
           </div>
         </div>
 
         {/* Wordmark */}
-        <div
-          className="text-center mb-8 animate-fade-up"
-          style={{ animationDelay: '80ms' }}
-        >
+        <div className="text-center mb-8 animate-fade-up" style={{ animationDelay: '80ms' }}>
           <h1
             className="text-3xl font-bold tracking-tight mb-1"
             style={{
-              fontFamily: 'var(--font-display)',
               background: 'linear-gradient(135deg, #f1f5f9 30%, #34d399)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
@@ -73,10 +66,7 @@ export default function LoginPage() {
           >
             Finance Bot
           </h1>
-          <p
-            className="text-sm"
-            style={{ color: 'rgba(241,245,249,0.35)', fontFamily: 'var(--font-display)' }}
-          >
+          <p className="text-sm" style={{ color: 'rgba(241,245,249,0.35)' }}>
             Personal finance via WhatsApp
           </p>
         </div>
@@ -91,8 +81,6 @@ export default function LoginPage() {
                 background: 'rgba(255,255,255,0.06)',
                 border: '1px solid rgba(255,255,255,0.1)',
                 color: 'rgba(241,245,249,0.85)',
-                fontFamily: 'var(--font-display)',
-                letterSpacing: '0.01em',
               }}
               onMouseEnter={(e) => {
                 const el = e.currentTarget as HTMLElement;
@@ -121,7 +109,7 @@ export default function LoginPage() {
           <GlassCard className="p-5">
             <h2
               className="text-[10px] font-semibold uppercase tracking-[0.15em] mb-4"
-              style={{ color: 'rgba(241,245,249,0.3)', fontFamily: 'var(--font-display)' }}
+              style={{ color: 'rgba(241,245,249,0.3)' }}
             >
               How it works
             </h2>
@@ -139,16 +127,12 @@ export default function LoginPage() {
                       background: 'rgba(16,185,129,0.15)',
                       border: '1px solid rgba(16,185,129,0.3)',
                       color: '#34d399',
-                      fontFamily: 'var(--font-display)',
                     }}
                   >
                     {step}
                   </span>
                   <div>
-                    <p
-                      className="text-sm font-semibold"
-                      style={{ color: 'rgba(241,245,249,0.8)', fontFamily: 'var(--font-display)' }}
-                    >
+                    <p className="text-sm font-semibold" style={{ color: 'rgba(241,245,249,0.8)' }}>
                       {title}
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: 'rgba(241,245,249,0.35)' }}>

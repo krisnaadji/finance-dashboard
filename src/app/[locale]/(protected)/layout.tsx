@@ -48,13 +48,11 @@ export default async function ProtectedLayout({ children }: { children: React.Re
               F
             </div>
             <span
-              className="font-bold text-sm tracking-tight"
+              className="font-semibold text-sm tracking-tight"
               style={{
-                fontFamily: 'var(--font-display)',
                 background: 'linear-gradient(135deg, #f1f5f9, #34d399)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
-                letterSpacing: '0.02em',
               }}
             >
               FinanceBot

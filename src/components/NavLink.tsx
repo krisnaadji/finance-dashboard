@@ -47,12 +47,7 @@ export function NavLink({ href, icon, label }: Props) {
       }
     >
       <span className="text-sm md:text-xs opacity-80">{icon}</span>
-      <span
-        className="text-[10px] md:text-sm"
-        style={{ fontFamily: 'var(--font-display)', letterSpacing: '0.01em' }}
-      >
-        {label}
-      </span>
+      <span className="text-[10px] md:text-sm">{label}</span>
     </Link>
   );
 }
