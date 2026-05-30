@@ -5,7 +5,13 @@ import { SummaryCards } from '@/components/SummaryCards';
 import { IncomeExpenseChart } from '@/components/IncomeExpenseChart';
 import { CategoryPieChart } from '@/components/CategoryPieChart';
 import { AddTransactionModal } from '@/components/AddTransactionModal';
-import { startOfMonth, today, formatIDR, formatDate } from '@/lib/utils';
+import {
+  PeriodControl,
+  createInitialPeriodValue,
+  type PeriodValue,
+} from '@/components/PeriodControl';
+import { formatIDR, formatDate } from '@/lib/utils';
+import { currentMonthRange } from '@/lib/reporting-period';
 import { GlowBadge } from '@/components/ui/GlowBadge';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassButton } from '@/components/ui/GlassButton';
@@ -44,9 +50,11 @@ interface Summary {
 export default function DashboardPage() {
   const accountId = useAccountId();
 
-  const [from, setFrom] = useState(startOfMonth());
-  const [to, setTo] = useState(today());
+  const [period, setPeriod] = useState<PeriodValue>(() => createInitialPeriodValue());
+  const from = period.from;
+  const to = period.to;
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [budgetSpending, setBudgetSpending] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -62,36 +70,55 @@ export default function DashboardPage() {
     setShowTrend(true);
     if (trend) return;
     setLoadingTrend(true);
-    const res = await fetch(`/api/summary/trend?account_id=${accountId}`);
-    const d = await res.json();
-    setTrend(d);
-    setLoadingTrend(false);
+    try {
+      const res = await fetch(`/api/summary/trend?account_id=${accountId}`);
+      const d = await res.json();
+      setTrend(d);
+    } finally {
+      setLoadingTrend(false);
+    }
   }
 
   useEffect(() => {
-    if (!accountId) return;
+    if (!accountId || !period.valid) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     setTrend(null);
     setShowTrend(false);
+    const monthlyRange = currentMonthRange();
+    const selectedIsMonthly = from === monthlyRange.from && to === monthlyRange.to;
 
     Promise.all([
       fetch(`/api/summary?account_id=${accountId}&from=${from}&to=${to}`).then((r) => r.json()),
+      selectedIsMonthly
+        ? Promise.resolve(null)
+        : fetch(
+            `/api/summary?account_id=${accountId}&from=${monthlyRange.from}&to=${monthlyRange.to}`,
+          ).then((r) => r.json()),
       fetch(`/api/budgets?account_id=${accountId}`).then((r) => r.json()),
       fetch(`/api/categories?account_id=${accountId}`).then((r) => r.json()),
-    ]).then(([summaryData, budgetsData, catsData]) => {
-      if (!cancelled) {
-        setSummary(summaryData);
-        setBudgets(Array.isArray(budgetsData) ? budgetsData : []);
-        setCategories(Array.isArray(catsData) ? catsData : []);
-        setLoading(false);
-      }
-    });
+    ])
+      .then(([summaryData, budgetSummaryData, budgetsData, catsData]) => {
+        if (!cancelled) {
+          setSummary(summaryData);
+          setBudgetSpending(
+            (selectedIsMonthly ? summaryData : budgetSummaryData)?.spendingByCategoryId ?? {},
+          );
+          setBudgets(Array.isArray(budgetsData) ? budgetsData : []);
+          setCategories(Array.isArray(catsData) ? catsData : []);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [accountId, from, to, reloadTick]);
+  }, [accountId, from, to, period.valid, reloadTick]);
 
   const topEntry = summary
     ? Object.entries(summary.byCategory).sort((a, b) => b[1] - a[1])[0]
@@ -102,7 +129,7 @@ export default function DashboardPage() {
     .map((b) => {
       const cat = categories.find((c) => c.id === b.category_id);
       if (!cat || cat.type !== 'expense') return null;
-      const spent = summary?.spendingByCategoryId?.[b.category_id] ?? 0;
+      const spent = budgetSpending[b.category_id] ?? 0;
       const pct = (spent / b.amount) * 100;
       const over = spent > b.amount;
       return { id: b.id, name: cat.name, spent, limit: b.amount, pct, over };
@@ -151,28 +178,7 @@ export default function DashboardPage() {
         onCreated={() => setReloadTick((n) => n + 1)}
       />
 
-      {/* Date range */}
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-white/40">From</label>
-          <input
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className="rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-1.5 text-sm [color-scheme:dark]"
-          />
-        </div>
-        <span className="text-white/20">—</span>
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-white/40">To</label>
-          <input
-            type="date"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className="rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-1.5 text-sm [color-scheme:dark]"
-          />
-        </div>
-      </div>
+      <PeriodControl accountId={accountId} value={period} onChange={setPeriod} className="mb-6" />
 
       {loading && <p className="text-white/30 text-sm animate-pulse">Loading...</p>}
 
