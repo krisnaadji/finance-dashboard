@@ -98,8 +98,10 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
   const inp =
     'bg-white/[0.06] border border-white/[0.1] text-white rounded-lg px-2 py-1.5 text-sm w-full box-border';
 
-  // Shared edit form JSX used in both mobile and desktop
-  function EditForm({ id, mobile }: { id: string; mobile?: boolean }) {
+  // Shared edit form JSX used in both mobile and desktop.
+  // Keep this as a render helper, not a nested component, so inputs are not
+  // remounted on every keystroke and mobile keyboards keep focus.
+  function renderEditForm(id: string, mobile?: boolean) {
     const filteredCats = cats.filter((c) => c.type === editForm.type);
     return (
       <div
@@ -177,7 +179,7 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
         {transactions.map((txn) => (
           <div key={txn.id} className="p-4">
             {editing === txn.id ? (
-              <EditForm id={txn.id} mobile />
+              renderEditForm(txn.id, true)
             ) : (
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
@@ -250,7 +252,7 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
               <tr key={txn.id} className="border-b border-white/[0.04] hover:bg-white/[0.03]">
                 {editing === txn.id ? (
                   <td colSpan={6} className="px-4 py-3">
-                    <EditForm id={txn.id} />
+                    {renderEditForm(txn.id)}
                   </td>
                 ) : (
                   <>
