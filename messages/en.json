@@ -77,6 +77,15 @@
     "thisMonth": "This Month",
     "lastMonth": "Last Month",
     "thisWeek": "This Week",
-    "custom": "Custom"
+    "custom": "Custom",
+    "salaryCycle": "Salary Cycle",
+    "latestSalary": "Latest Salary",
+    "month": "Month",
+    "year": "Year",
+    "range": "{from} to {to}",
+    "salaryBadge": "Salary cycle: {month} {year}",
+    "salaryMissing": "No Gaji income transaction found for this salary period. Record salary first.",
+    "invalidPeriod": "Adjust the selected period.",
+    "resolveFailed": "Failed to resolve reporting period."
   }
 }

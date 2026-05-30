@@ -4,7 +4,11 @@ import { useTranslations } from 'next-intl';
 import { useAccountId, useAccountRole, useAccountType } from '@/components/AccountSwitcher';
 import { TransactionTable } from '@/components/TransactionTable';
 import { AddTransactionModal } from '@/components/AddTransactionModal';
-import { startOfMonth, today } from '@/lib/utils';
+import {
+  PeriodControl,
+  createInitialPeriodValue,
+  type PeriodValue,
+} from '@/components/PeriodControl';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlowBadge } from '@/components/ui/GlowBadge';
 import { GlassButton } from '@/components/ui/GlassButton';
@@ -27,6 +31,16 @@ interface Category {
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100, 'All'] as const;
 type PageSizeOption = (typeof PAGE_SIZE_OPTIONS)[number];
 
+function clearTransactionResults(
+  setTxns: (value: Transaction[]) => void,
+  setTotal: (value: number) => void,
+  setTotalPages: (value: number) => void,
+) {
+  setTxns([]);
+  setTotal(0);
+  setTotalPages(1);
+}
+
 export default function TransactionsPage() {
   const t = useTranslations('transactions');
   const accountId = useAccountId();
@@ -35,14 +49,16 @@ export default function TransactionsPage() {
   const isOwner = accountRole === 'owner';
   const isGroup = accountType === 'group';
 
-  const [from, setFrom] = useState(startOfMonth());
-  const [to, setTo] = useState(today());
+  const [period, setPeriod] = useState<PeriodValue>(() => createInitialPeriodValue());
+  const from = period.from;
+  const to = period.to;
   const [type, setType] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [txns, setTxns] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryAccountId, setCategoryAccountId] = useState('');
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSizeOption>(20);
@@ -53,21 +69,41 @@ export default function TransactionsPage() {
   const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
+    setCategories([]);
+    setCategoryId('');
+    setCategoryAccountId(accountId);
+    clearTransactionResults(setTxns, setTotal, setTotalPages);
     if (!accountId) return;
+
+    let cancelled = false;
     fetch(`/api/categories?account_id=${accountId}`)
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) setCategories(data);
+        if (!cancelled && Array.isArray(data)) setCategories(data);
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [accountId]);
 
   useEffect(() => {
     setPage(1);
-  }, [accountId, from, to, type, categoryId, search, pageSize]);
+  }, [accountId, from, to, period.mode, period.valid, type, categoryId, search, pageSize]);
 
   useEffect(() => {
-    if (!accountId) return;
+    if (!accountId || !period.valid) {
+      setLoading(false);
+      clearTransactionResults(setTxns, setTotal, setTotalPages);
+      return;
+    }
+
+    const controller = new AbortController();
+    let cancelled = false;
+
     setLoading(true);
+    clearTransactionResults(setTxns, setTotal, setTotalPages);
+    const activeCategoryId = categoryAccountId === accountId ? categoryId : '';
     const params = new URLSearchParams({
       account_id: accountId,
       from,
@@ -75,18 +111,42 @@ export default function TransactionsPage() {
       page: String(page),
       page_size: pageSize === 'All' ? '99999' : String(pageSize),
       ...(type && { type }),
-      ...(categoryId && { category_id: categoryId }),
+      ...(activeCategoryId && { category_id: activeCategoryId }),
       ...(search && { search }),
     });
-    fetch(`/api/transactions?${params}`)
+    fetch(`/api/transactions?${params}`, { signal: controller.signal })
       .then((r) => r.json())
       .then((res) => {
+        if (cancelled) return;
         setTxns(res.data ?? []);
         setTotal(res.total ?? 0);
         setTotalPages(res.totalPages ?? 1);
-        setLoading(false);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        if (!cancelled) clearTransactionResults(setTxns, setTotal, setTotalPages);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
-  }, [accountId, from, to, type, categoryId, search, page, pageSize, reloadTick]);
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [
+    accountId,
+    from,
+    to,
+    period.valid,
+    type,
+    categoryId,
+    categoryAccountId,
+    search,
+    page,
+    pageSize,
+    reloadTick,
+  ]);
 
   function handleJump() {
     const n = parseInt(jumpInput);
@@ -95,6 +155,9 @@ export default function TransactionsPage() {
   }
 
   async function exportCSV() {
+    if (!period.valid) return;
+    const exportCategoryId = categoryAccountId === accountId ? categoryId : '';
+
     const params = new URLSearchParams({
       account_id: accountId,
       from,
@@ -102,7 +165,7 @@ export default function TransactionsPage() {
       page: '1',
       page_size: '99999',
       ...(type && { type }),
-      ...(categoryId && { category_id: categoryId }),
+      ...(exportCategoryId && { category_id: exportCategoryId }),
       ...(search && { search }),
     });
 
@@ -143,8 +206,10 @@ export default function TransactionsPage() {
       </div>
     );
 
-  const hasActiveFilters = !!(type || categoryId || search);
-  const filteredCategories = categories.filter((c) => !type || c.type === type);
+  const activeCategoryId = categoryAccountId === accountId ? categoryId : '';
+  const activeCategories = categoryAccountId === accountId ? categories : [];
+  const hasActiveFilters = !!(type || activeCategoryId || search);
+  const filteredCategories = activeCategories.filter((c) => !type || c.type === type);
   const showPagination = pageSize !== 'All' && totalPages > 1;
 
   return (
@@ -155,7 +220,7 @@ export default function TransactionsPage() {
           <GlassButton variant="primary" onClick={() => setAddOpen(true)}>
             + Add
           </GlassButton>
-          <GlassButton variant="ghost" onClick={exportCSV}>
+          <GlassButton variant="ghost" onClick={exportCSV} disabled={!period.valid}>
             Export CSV
           </GlassButton>
         </div>
@@ -170,84 +235,75 @@ export default function TransactionsPage() {
 
       {/* Filters */}
       <GlassCard className="p-3 md:p-4 mb-4">
-      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
-        <div className="flex gap-2 w-full sm:w-auto">
-          <input
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className="flex-1 sm:flex-none rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-1.5 text-sm [color-scheme:dark]"
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+          <PeriodControl
+            accountId={accountId}
+            value={period}
+            onChange={setPeriod}
+            className="w-full"
           />
-          <span className="text-white/20 self-center">—</span>
-          <input
-            type="date"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className="flex-1 sm:flex-none rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-1.5 text-sm [color-scheme:dark]"
-          />
-        </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <select
-            value={type}
-            onChange={(e) => {
-              setType(e.target.value);
-              setCategoryId('');
-            }}
-            className="flex-1 rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-1.5 text-sm"
-          >
-            <option value="" className="bg-[#1a1a1f]">
-              All types
-            </option>
-            <option value="expense" className="bg-[#1a1a1f]">
-              Expense
-            </option>
-            <option value="income" className="bg-[#1a1a1f]">
-              Income
-            </option>
-          </select>
-          <select
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-            className="flex-1 rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-1.5 text-sm"
-          >
-            <option value="" className="bg-[#1a1a1f]">
-              All categories
-            </option>
-            {filteredCategories.map((c) => (
-              <option key={c.id} value={c.id} className="bg-[#1a1a1f]">
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex gap-2 w-full sm:w-auto sm:flex-1 sm:max-w-xs">
-          <input
-            type="text"
-            placeholder="Search description..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && setSearch(searchInput)}
-            className="flex-1 rounded-lg border border-white/[0.1] bg-white/[0.06] text-white placeholder:text-white/20 px-3 py-1.5 text-sm"
-          />
-          <button
-            onClick={() => setSearch(searchInput)}
-            className="rounded-lg bg-white/[0.06] border border-white/[0.1] text-white/60 px-3 py-1.5 text-sm hover:bg-white/[0.1] whitespace-nowrap"
-          >
-            Search
-          </button>
-          {search && (
-            <button
-              onClick={() => {
-                setSearch('');
-                setSearchInput('');
+          <div className="flex gap-2 w-full sm:w-auto">
+            <select
+              value={type}
+              onChange={(e) => {
+                setType(e.target.value);
+                setCategoryId('');
               }}
-              className="rounded-lg bg-white/[0.06] border border-white/[0.1] text-white/40 px-3 py-1.5 text-sm hover:bg-white/[0.1]"
+              className="flex-1 rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-1.5 text-sm"
             >
-              ✕
+              <option value="" className="bg-[#1a1a1f]">
+                All types
+              </option>
+              <option value="expense" className="bg-[#1a1a1f]">
+                Expense
+              </option>
+              <option value="income" className="bg-[#1a1a1f]">
+                Income
+              </option>
+            </select>
+            <select
+              value={activeCategoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className="flex-1 rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-1.5 text-sm"
+            >
+              <option value="" className="bg-[#1a1a1f]">
+                All categories
+              </option>
+              {filteredCategories.map((c) => (
+                <option key={c.id} value={c.id} className="bg-[#1a1a1f]">
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto sm:flex-1 sm:max-w-xs">
+            <input
+              type="text"
+              placeholder="Search description..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && setSearch(searchInput)}
+              className="flex-1 rounded-lg border border-white/[0.1] bg-white/[0.06] text-white placeholder:text-white/20 px-3 py-1.5 text-sm"
+            />
+            <button
+              onClick={() => setSearch(searchInput)}
+              className="rounded-lg bg-white/[0.06] border border-white/[0.1] text-white/60 px-3 py-1.5 text-sm hover:bg-white/[0.1] whitespace-nowrap"
+            >
+              Search
             </button>
-          )}
+            {search && (
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setSearchInput('');
+                }}
+                className="rounded-lg bg-white/[0.06] border border-white/[0.1] text-white/40 px-3 py-1.5 text-sm hover:bg-white/[0.1]"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
-      </div>
       </GlassCard>
 
       {/* Active filters + result count + page size */}
@@ -266,13 +322,9 @@ export default function TransactionsPage() {
                 {type} ×
               </GlowBadge>
             )}
-            {categoryId && (
-              <GlowBadge
-                color="sky"
-                className="cursor-pointer"
-                onClick={() => setCategoryId('')}
-              >
-                {categories.find((c) => c.id === categoryId)?.name} ×
+            {activeCategoryId && (
+              <GlowBadge color="sky" className="cursor-pointer" onClick={() => setCategoryId('')}>
+                {activeCategories.find((c) => c.id === activeCategoryId)?.name} ×
               </GlowBadge>
             )}
             {search && (
