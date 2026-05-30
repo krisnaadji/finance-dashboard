@@ -77,6 +77,15 @@
     "thisMonth": "Bulan Ini",
     "lastMonth": "Bulan Lalu",
     "thisWeek": "Minggu Ini",
-    "custom": "Kustom"
+    "custom": "Kustom",
+    "salaryCycle": "Siklus Gaji",
+    "latestSalary": "Gaji Terakhir",
+    "month": "Bulan",
+    "year": "Tahun",
+    "range": "{from} s/d {to}",
+    "salaryBadge": "Siklus gaji: {month} {year}",
+    "salaryMissing": "Tidak ada transaksi pemasukan kategori Gaji untuk periode ini. Catat gaji terlebih dahulu.",
+    "invalidPeriod": "Sesuaikan periode yang dipilih.",
+    "resolveFailed": "Gagal menentukan periode laporan."
   }
 }
