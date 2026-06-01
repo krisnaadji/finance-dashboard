@@ -37,7 +37,7 @@ type PeriodApiResponse =
     };
 
 const inputClass =
-  'bg-white/[0.06] border border-white/[0.1] text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-emerald-400/50';
+  'min-w-0 bg-white/[0.06] border border-white/[0.1] text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-emerald-400/50';
 
 export function createInitialPeriodValue(now = new Date()): PeriodValue {
   const range = currentMonthRange(now);
@@ -214,71 +214,75 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
   const showError = error || (!value.valid && value.mode === 'custom' ? t('invalidPeriod') : null);
 
   return (
-    <div className={`space-y-2 ${className}`}>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <ModeButton active={value.mode === 'this_month'} onClick={selectThisMonth}>
-          {t('thisMonth')}
-        </ModeButton>
-        <ModeButton active={value.mode === 'salary_cycle'} onClick={selectSalaryCycle}>
-          {t('salaryCycle')}
-        </ModeButton>
-        <ModeButton active={value.mode === 'custom'} onClick={selectCustom}>
-          {t('custom')}
-        </ModeButton>
+    <div className={`max-w-full space-y-2 ${className}`}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="grid grid-cols-3 items-center gap-1.5 sm:flex sm:flex-wrap">
+          <ModeButton active={value.mode === 'this_month'} onClick={selectThisMonth}>
+            {t('thisMonth')}
+          </ModeButton>
+          <ModeButton active={value.mode === 'salary_cycle'} onClick={selectSalaryCycle}>
+            {t('salaryCycle')}
+          </ModeButton>
+          <ModeButton active={value.mode === 'custom'} onClick={selectCustom}>
+            {t('custom')}
+          </ModeButton>
+        </div>
+
+        {value.mode === 'salary_cycle' && (
+          <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
+            <label className="min-w-0 flex items-center gap-1.5 text-xs text-white/40">
+              <span>{t('month')}</span>
+              <select
+                value={value.salaryMonth}
+                onChange={(event) =>
+                  updateSalaryTarget({ salaryMonth: Number(event.target.value) })
+                }
+                className={inputClass}
+              >
+                {months.map((month) => (
+                  <option key={month.value} value={month.value} className="bg-[#1a1a1f] text-white">
+                    {month.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="min-w-0 flex items-center gap-1.5 text-xs text-white/40">
+              <span>{t('year')}</span>
+              <select
+                value={value.salaryYear}
+                onChange={(event) => updateSalaryTarget({ salaryYear: Number(event.target.value) })}
+                className={inputClass}
+              >
+                {years.map((year) => (
+                  <option key={year} value={year} className="bg-[#1a1a1f] text-white">
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
+
+        {value.mode === 'custom' && (
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:flex sm:flex-wrap">
+            <input
+              type="date"
+              value={value.from}
+              onChange={(event) => updateCustomRange({ from: event.target.value })}
+              className={`${inputClass} w-full sm:w-auto`}
+              style={{ colorScheme: 'dark' }}
+            />
+            <span className="text-xs text-white/30">-</span>
+            <input
+              type="date"
+              value={value.to}
+              onChange={(event) => updateCustomRange({ to: event.target.value })}
+              className={`${inputClass} w-full sm:w-auto`}
+              style={{ colorScheme: 'dark' }}
+            />
+          </div>
+        )}
       </div>
-
-      {value.mode === 'salary_cycle' && (
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-1.5 text-xs text-white/40">
-            <span>{t('month')}</span>
-            <select
-              value={value.salaryMonth}
-              onChange={(event) => updateSalaryTarget({ salaryMonth: Number(event.target.value) })}
-              className={inputClass}
-            >
-              {months.map((month) => (
-                <option key={month.value} value={month.value} className="bg-[#1a1a1f] text-white">
-                  {month.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-1.5 text-xs text-white/40">
-            <span>{t('year')}</span>
-            <select
-              value={value.salaryYear}
-              onChange={(event) => updateSalaryTarget({ salaryYear: Number(event.target.value) })}
-              className={inputClass}
-            >
-              {years.map((year) => (
-                <option key={year} value={year} className="bg-[#1a1a1f] text-white">
-                  {year}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      )}
-
-      {value.mode === 'custom' && (
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="date"
-            value={value.from}
-            onChange={(event) => updateCustomRange({ from: event.target.value })}
-            className={inputClass}
-            style={{ colorScheme: 'dark' }}
-          />
-          <span className="text-xs text-white/30">-</span>
-          <input
-            type="date"
-            value={value.to}
-            onChange={(event) => updateCustomRange({ to: event.target.value })}
-            className={inputClass}
-            style={{ colorScheme: 'dark' }}
-          />
-        </div>
-      )}
 
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className={value.valid ? 'text-white/40' : 'text-white/25'}>
@@ -306,7 +310,7 @@ function ModeButton({
       type="button"
       onClick={onClick}
       className={
-        'rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ' +
+        'w-full rounded-lg border px-2.5 py-1.5 text-center text-xs font-medium transition-colors sm:w-auto ' +
         (active
           ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-200'
           : 'border-white/[0.08] bg-white/[0.04] text-white/45 hover:bg-white/[0.08] hover:text-white/70')
