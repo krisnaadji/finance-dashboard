@@ -1,20 +1,11 @@
 import { createAdminClient } from '@/lib/supabase-server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import {
+  getAuthUser,
+  requireAccountMember,
+  requireAccountOwner,
+  type AccountAuthClient,
+} from '@/lib/server-auth';
 import { NextResponse } from 'next/server';
-
-async function getAuthUser() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } },
-  );
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
-}
 
 // GET: list all budgets for an account
 export async function GET(req: Request) {
@@ -22,7 +13,13 @@ export async function GET(req: Request) {
   const accountId = searchParams.get('account_id');
   if (!accountId) return NextResponse.json({ error: 'Missing account_id' }, { status: 400 });
 
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const admin = createAdminClient();
+  const auth = await requireAccountMember(admin as unknown as AccountAuthClient, accountId, user);
+  if (!auth.ok) return auth.response;
+
   const { data } = await admin.from('budgets').select('*').eq('account_id', accountId);
 
   return NextResponse.json(data ?? []);
@@ -40,13 +37,8 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
 
   // Verify owner
-  const { data: account } = await admin
-    .from('accounts')
-    .select('owner_id')
-    .eq('id', account_id)
-    .single();
-  if (account?.owner_id !== user.id)
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const auth = await requireAccountOwner(admin as unknown as AccountAuthClient, account_id, user);
+  if (!auth.ok) return auth.response;
 
   const { data, error } = await admin
     .from('budgets')

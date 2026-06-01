@@ -1,4 +1,10 @@
 import { createAdminClient } from '@/lib/supabase-server';
+import {
+  getAuthUser,
+  requireAccountMember,
+  requireAccountOwner,
+  type AccountAuthClient,
+} from '@/lib/server-auth';
 import { NextResponse } from 'next/server';
 
 export async function GET(req: Request) {
@@ -6,7 +12,13 @@ export async function GET(req: Request) {
   const accountId = searchParams.get('account_id');
   if (!accountId) return NextResponse.json({ error: 'Missing account_id' }, { status: 400 });
 
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const admin = createAdminClient();
+  const auth = await requireAccountMember(admin as unknown as AccountAuthClient, accountId, user);
+  if (!auth.ok) return auth.response;
+
   const { data } = await admin
     .from('categories')
     .select('*')
@@ -18,8 +30,14 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const admin = createAdminClient();
   const { account_id, name, type } = await req.json();
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const admin = createAdminClient();
+  const auth = await requireAccountOwner(admin as unknown as AccountAuthClient, account_id, user);
+  if (!auth.ok) return auth.response;
+
   const { data, error } = await admin
     .from('categories')
     .insert({ account_id, name, type, is_custom: true, is_active: true })
@@ -35,12 +53,21 @@ export async function PATCH(req: Request) {
   if (!id || !name?.trim())
     return NextResponse.json({ error: 'Missing id or name' }, { status: 400 });
 
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const admin = createAdminClient();
 
   // Only allow editing custom categories
-  const { data: cat } = await admin.from('categories').select('is_custom').eq('id', id).single();
+  const { data: cat } = await admin
+    .from('categories')
+    .select('account_id, is_custom')
+    .eq('id', id)
+    .single();
   if (!cat?.is_custom)
     return NextResponse.json({ error: 'Cannot edit default category' }, { status: 403 });
+  const auth = await requireAccountOwner(admin as unknown as AccountAuthClient, cat.account_id, user);
+  if (!auth.ok) return auth.response;
 
   const { data, error } = await admin
     .from('categories')
@@ -58,11 +85,20 @@ export async function DELETE(req: Request) {
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const admin = createAdminClient();
 
-  const { data: cat } = await admin.from('categories').select('is_custom').eq('id', id).single();
+  const { data: cat } = await admin
+    .from('categories')
+    .select('account_id, is_custom')
+    .eq('id', id)
+    .single();
   if (!cat?.is_custom)
     return NextResponse.json({ error: 'Cannot delete default category' }, { status: 403 });
+  const auth = await requireAccountOwner(admin as unknown as AccountAuthClient, cat.account_id, user);
+  if (!auth.ok) return auth.response;
 
   const { error } = await admin.from('categories').update({ is_active: false }).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

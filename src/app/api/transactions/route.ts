@@ -1,20 +1,6 @@
 import { createAdminClient } from '@/lib/supabase-server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { getAuthUser, requireAccountMember, type AccountAuthClient } from '@/lib/server-auth';
 import { NextResponse } from 'next/server';
-
-async function getAuthUser() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } },
-  );
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
-}
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -29,7 +15,13 @@ export async function GET(req: Request) {
 
   if (!accountId) return NextResponse.json({ error: 'Missing account_id' }, { status: 400 });
 
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const admin = createAdminClient();
+  const auth = await requireAccountMember(admin as unknown as AccountAuthClient, accountId, user);
+  if (!auth.ok) return auth.response;
+
   const from_ = (page - 1) * pageSize;
   const to_ = from_ + pageSize - 1;
 
@@ -94,13 +86,8 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
 
   // Verify caller is a member of the account
-  const { data: membership } = await admin
-    .from('members')
-    .select('display_name')
-    .eq('account_id', account_id)
-    .eq('user_id', user.id)
-    .single();
-  if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const auth = await requireAccountMember(admin as unknown as AccountAuthClient, account_id, user);
+  if (!auth.ok) return auth.response;
 
   // Insert the transaction
   const { data: txn, error } = await admin
@@ -114,7 +101,7 @@ export async function POST(req: Request) {
       date,
       raw_message: null,
       wa_user_message_id: null,
-      recorded_by_name: membership.display_name ?? user.email ?? null,
+      recorded_by_name: auth.membership.display_name ?? user.email ?? null,
       recorded_by_phone: null,
     })
     .select('*, categories(name)')
