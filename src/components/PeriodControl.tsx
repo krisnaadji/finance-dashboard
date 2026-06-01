@@ -230,14 +230,14 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
 
         {value.mode === 'salary_cycle' && (
           <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
-            <label className="min-w-0 flex items-center gap-1.5 text-xs text-white/40">
+            <label className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 text-xs text-white/40 sm:flex">
               <span>{t('month')}</span>
               <select
                 value={value.salaryMonth}
                 onChange={(event) =>
                   updateSalaryTarget({ salaryMonth: Number(event.target.value) })
                 }
-                className={inputClass}
+                className={`${inputClass} w-full sm:w-auto`}
               >
                 {months.map((month) => (
                   <option key={month.value} value={month.value} className="bg-[#1a1a1f] text-white">
@@ -246,12 +246,12 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
                 ))}
               </select>
             </label>
-            <label className="min-w-0 flex items-center gap-1.5 text-xs text-white/40">
+            <label className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 text-xs text-white/40 sm:flex">
               <span>{t('year')}</span>
               <select
                 value={value.salaryYear}
                 onChange={(event) => updateSalaryTarget({ salaryYear: Number(event.target.value) })}
-                className={inputClass}
+                className={`${inputClass} w-full sm:w-auto`}
               >
                 {years.map((year) => (
                   <option key={year} value={year} className="bg-[#1a1a1f] text-white">
@@ -270,7 +270,12 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
               value={value.from}
               onChange={(event) => updateCustomRange({ from: event.target.value })}
               className={`${inputClass} w-full sm:w-auto`}
-              style={{ colorScheme: 'dark' }}
+              style={{
+                colorScheme: 'dark',
+                maxWidth: '100%',
+                appearance: 'none',
+                WebkitAppearance: 'none',
+              }}
             />
             <span className="text-xs text-white/30">-</span>
             <input
@@ -278,7 +283,12 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
               value={value.to}
               onChange={(event) => updateCustomRange({ to: event.target.value })}
               className={`${inputClass} w-full sm:w-auto`}
-              style={{ colorScheme: 'dark' }}
+              style={{
+                colorScheme: 'dark',
+                maxWidth: '100%',
+                appearance: 'none',
+                WebkitAppearance: 'none',
+              }}
             />
           </div>
         )}
