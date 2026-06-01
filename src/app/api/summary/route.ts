@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase-server';
+import { getAuthUser, requireAccountMember, type AccountAuthClient } from '@/lib/server-auth';
 import { NextResponse } from 'next/server';
 
 export async function GET(req: Request) {
@@ -9,7 +10,13 @@ export async function GET(req: Request) {
   if (!accountId || !from || !to)
     return NextResponse.json({ error: 'Missing params' }, { status: 400 });
 
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const admin = createAdminClient();
+  const auth = await requireAccountMember(admin as unknown as AccountAuthClient, accountId, user);
+  if (!auth.ok) return auth.response;
+
   const { data: txns } = await admin
     .from('transactions')
     .select('id, amount, type, description, date, category_id, categories(name)')
