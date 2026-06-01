@@ -1,6 +1,6 @@
 # 📊 Finance Bot — Dashboard
 
-Web dashboard for the WhatsApp Finance Bot. View transactions, manage accounts, invite members, and generate WhatsApp setup codes. Built with Next.js 15 + Supabase.
+Web dashboard for the WhatsApp Finance Bot. View transactions, manage accounts, invite members, configure budgets, and generate WhatsApp setup codes. Built with Next.js 16 + React 19 + Supabase.
 
 ---
 
@@ -61,17 +61,20 @@ Browser
 
 > See [README-database.md](https://github.com/krisnaadji/finance-dashboard/blob/main/README-database.md) for full schema, table definitions, and ER diagram.
 
+The diagram above is a high-level overview. Current local API routes also include budgets, invite token redemption, reporting period resolution, and summary trend endpoints. Supabase RLS is enabled, but server-side API routes use the service-role key and must enforce account access in application code.
+
 ---
 
 ## Tech Stack
 
 | Layer      | Tech                          | Notes                            |
 |------------|-------------------------------|----------------------------------|
-| Framework  | Next.js 15 (App Router)       | React Server + Client Components |
-| Language   | TypeScript                    | Strict mode                      |
+| Framework  | Next.js 16.2.2 (App Router)   | React Server + Client Components |
+| React      | React 19.2.4                  | Client and Server Components     |
+| Language   | TypeScript 5                  | Strict mode                      |
 | Styling    | Tailwind CSS                  | Dark glass design system         |
 | Auth       | Supabase Auth + Google OAuth  | `@supabase/ssr`                  |
-| Database   | Supabase PostgreSQL           | RLS via anon key                 |
+| Database   | Supabase PostgreSQL           | Admin client in API routes; RLS in database |
 | Charts     | Recharts                      | BarChart + PieChart              |
 | i18n       | next-intl                     | Indonesian + English             |
 | Linting    | ESLint v9 + Prettier          | `eslint.config.mjs` (ESM)        |
@@ -106,9 +109,13 @@ src/
       accounts/[id]/link-code/route.ts
       accounts/[id]/invite/route.ts        # Generate one-time invite link
       accounts/[id]/members/route.ts       # List members with Google name fallback
+      budgets/route.ts                     # GET, POST, DELETE category budgets
+      invite/[token]/route.ts              # Invite validation/redeem
       transactions/route.ts
       transactions/[id]/route.ts           # PATCH (any member), DELETE (owner only)
       summary/route.ts
+      summary/trend/route.ts               # 12-month trend data
+      period/route.ts                      # Reporting period resolver
       categories/route.ts                  # GET, POST, PATCH, DELETE
       members/display-name/route.ts        # Update display name across all accounts
 
@@ -122,8 +129,12 @@ src/
     CategoryPieChart.tsx                   # Recharts PieChart with legend
     TransactionTable.tsx                   # Card (mobile) + table (desktop) + inline edit
     LinkCodeModal.tsx                      # /setup CODE generator
+    AddTransactionModal.tsx                # Manual dashboard transaction form
+    PeriodControl.tsx                      # Reporting period selector
+    ui/                                    # Glass UI primitives
 
   lib/
+    reporting-period.ts                    # Shared reporting period helpers
     supabase-browser.ts                    # createBrowserClient (client components)
     supabase-server.ts                     # createAdminClient (API routes, service key)
     utils.ts                               # formatIDR, formatDate, startOfMonth, today
@@ -135,8 +146,6 @@ messages/
   id.json                                  # Indonesian translations
   en.json                                  # English translations
 ```
-
----
 
 ## Environment Variables
 
@@ -152,7 +161,7 @@ SUPABASE_SERVICE_KEY=eyJ...             # service_role — server only, never ex
 NEXT_PUBLIC_APP_URL=http://localhost:3000   # change to Vercel URL after deploy
 ```
 
-> **Security note:** `SUPABASE_SERVICE_KEY` bypasses Row Level Security. Only use it in API routes (`src/app/api/`), never in client components.
+> **Security note:** `SUPABASE_SERVICE_KEY` bypasses Row Level Security. Only use it in trusted server code such as API routes (`src/app/api/`), never in client components. Account-scoped API routes must still enforce membership/owner checks in application code.
 
 ---
 
@@ -277,6 +286,8 @@ const accountType = useAccountType();  // 'personal' | 'group'
 ---
 
 ## Known Limitations
+
+> Current dashboard API behavior is implemented with local Next.js route handlers. A separate external dashboard API is not built yet.
 
 | Feature                       | Status       | Notes                                               |
 |-------------------------------|--------------|-----------------------------------------------------|
