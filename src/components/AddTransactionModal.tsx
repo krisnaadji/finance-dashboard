@@ -70,6 +70,7 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
     setAmount('');
     setCategoryId('');
     setDescription('');
+    setSaving(false);
     setError('');
     setWarning(null);
     setSuccessTxn(null);
@@ -135,6 +136,7 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
         return;
       }
       // Otherwise just close
+      setSaving(false);
       onClose();
     } catch {
       setError(t('saveFailed'));
