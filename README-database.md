@@ -77,6 +77,20 @@ Every financial transaction recorded via WhatsApp or the dashboard.
 
 ---
 
+### `budgets`
+Monthly category budget limits used by the dashboard and bot budget warnings.
+
+| Column      | Type          | Notes                                       |
+|-------------|---------------|---------------------------------------------|
+| id          | uuid PK       |                                             |
+| account_id  | uuid          | -> `accounts`                               |
+| category_id | uuid          | -> `categories`                             |
+| amount      | numeric(15,2) | Positive budget amount for expense category |
+| created_at  | timestamptz   |                                             |
+| updated_at  | timestamptz   |                                             |
+
+---
+
 ### `pending_actions`
 Temporary records for delete confirmations. Expires after 60 seconds.
 
@@ -149,6 +163,8 @@ accounts ───────────────────────�
 
 ---
 
+Note: `budgets` also belongs to an account and category. It is used for monthly category limits and dashboard/bot budget warnings.
+
 ## Row Level Security
 
 All tables have RLS enabled. The dashboard uses the `anon` key (RLS enforced). The bot backend and API routes use the `service_role` key (bypasses RLS — server only, never expose to client).
@@ -161,6 +177,7 @@ Key policies:
 | members        | Account owner can manage; members can read own row        |
 | categories     | Account owner/members can read; owner can write           |
 | transactions   | Account owner/members can read; owner can delete          |
+| budgets        | Account owner/members can read; owner can write           |
 | pending_actions| Account owner only                                        |
 | link_codes     | Account owner only                                        |
 | invite_tokens  | Account owner only                                        |
