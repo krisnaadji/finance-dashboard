@@ -270,7 +270,12 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
               value={value.from}
               onChange={(event) => updateCustomRange({ from: event.target.value })}
               className={`${inputClass} w-full sm:w-auto`}
-              style={{ colorScheme: 'dark' }}
+              style={{
+                colorScheme: 'dark',
+                maxWidth: '100%',
+                appearance: 'none',
+                WebkitAppearance: 'none',
+              }}
             />
             <span className="text-xs text-white/30">-</span>
             <input
@@ -278,7 +283,12 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
               value={value.to}
               onChange={(event) => updateCustomRange({ to: event.target.value })}
               className={`${inputClass} w-full sm:w-auto`}
-              style={{ colorScheme: 'dark' }}
+              style={{
+                colorScheme: 'dark',
+                maxWidth: '100%',
+                appearance: 'none',
+                WebkitAppearance: 'none',
+              }}
             />
           </div>
         )}
