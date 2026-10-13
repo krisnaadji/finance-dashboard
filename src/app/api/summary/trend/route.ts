@@ -1,10 +1,18 @@
 import { createAdminClient } from '@/lib/supabase-server';
 import { NextResponse } from 'next/server';
+import { requireUser, requireAccountMember } from '@/lib/server-auth';
+import { isUuid } from '@/lib/financial-validation';
+import { apiError } from '@/lib/api-response';
 
 export async function GET(req: Request) {
+  try {
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
   const { searchParams } = new URL(req.url);
   const accountId = searchParams.get('account_id');
-  if (!accountId) return NextResponse.json({ error: 'Missing account_id' }, { status: 400 });
+  if (!isUuid(accountId)) return apiError(400, 'invalid_request');
+  const access = await requireAccountMember(accountId, auth.user);
+  if (!access.ok) return access.response;
 
   // Always last 12 months
   const to = new Date();
@@ -13,12 +21,13 @@ export async function GET(req: Request) {
   from.setDate(1);
 
   const admin = createAdminClient();
-  const { data: txns } = await admin
+  const { data: txns, error } = await admin
     .from('transactions')
     .select('amount, type, date')
     .eq('account_id', accountId)
     .gte('date', from.toISOString().split('T')[0])
     .lte('date', to.toISOString().split('T')[0]);
+  if (error) return apiError(503, 'dependency_unavailable');
 
   const byMonth: Record<string, { income: number; expense: number }> = {};
 
@@ -37,4 +46,7 @@ export async function GET(req: Request) {
   }
 
   return NextResponse.json(byMonth);
+  } catch {
+    return apiError(500, 'internal_error');
+  }
 }

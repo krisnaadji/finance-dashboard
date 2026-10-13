@@ -23,7 +23,7 @@ Represents a finance account — either personal (DM) or group (group chat).
 ---
 
 ### `members`
-Links users (Google or WhatsApp) to accounts. Every account owner also has a member row.
+Links Google or WhatsApp users to accounts. Ownership comes from `accounts.owner_id`; an owner can access an account without a member row, and a member's `role` value does not grant ownership.
 
 | Column        | Type        | Notes                                      |
 |---------------|-------------|--------------------------------------------|
@@ -82,11 +82,14 @@ Temporary records for delete confirmations. Expires after 60 seconds.
 
 | Column         | Type        | Notes                  |
 |----------------|-------------|------------------------|
-| id             | uuid PK     |                        |
+| id             | uuid PK     | Fresh UUID for each confirmation request |
 | account_id     | uuid        | → `accounts`           |
 | transaction_id | uuid        | → `transactions`       |
 | action         | text        | `'DELETE'` \| `'EDIT'` |
 | expires_at     | timestamptz | 60 second TTL          |
+| requested_by_phone | text | Requester binding added by Phase 1 migration |
+| wa_chat_id | text | Chat binding added by Phase 1 migration |
+| confirmation_message_id | text | Delivered prompt identity added by Phase 1 migration |
 | created_at     | timestamptz |                        |
 
 ---
@@ -151,16 +154,33 @@ accounts ───────────────────────�
 
 ## Row Level Security
 
-All tables have RLS enabled. The dashboard uses the `anon` key (RLS enforced). The bot backend and API routes use the `service_role` key (bypasses RLS — server only, never expose to client).
+Both the bot backend and dashboard API routes use the service-role key, which bypasses RLS. Dashboard routes verify the authenticated user and active-account access independently. Administrative operations require `accounts.owner_id`; member roles are not ownership authority.
 
-Key policies:
+The policy matrix below was checked against the production catalog on 2026-10-13. Reinspect policies before a user-scoped database client cutover; the current application uses the service-role client.
 
-| Table          | Policy                                                    |
-|----------------|-----------------------------------------------------------|
-| accounts       | Owner can read/write own accounts; members can read       |
-| members        | Account owner can manage; members can read own row        |
-| categories     | Account owner/members can read; owner can write           |
-| transactions   | Account owner/members can read; owner can delete          |
-| pending_actions| Account owner only                                        |
-| link_codes     | Account owner only                                        |
-| invite_tokens  | Account owner only                                        |
+Inspected policy matrix:
+
+| Table           | SELECT policy                                             | Write policies |
+|-----------------|-----------------------------------------------------------|----------------|
+| accounts        | `owner_id = auth.uid()` OR member of `id`                 | — (service role only) |
+| categories      | account owner OR member                                   | — (service role only) |
+| transactions    | account owner OR member                                   | — (service role only) |
+| members         | `user_id = auth.uid()`                                    | — (service role only) |
+| budgets         | account owner (ALL — read + write)                        | — (owner, ALL) |
+| invite_tokens   | account owner (ALL — read + write)                        | — (owner, ALL) |
+| pending_actions | none — bot-only (service role)                            | — |
+| link_codes      | none — bot-only (service role)                            | — |
+
+Production has the `members_select` policy with `user_id = auth.uid()`. No policy change was needed during the catalog inspection.
+
+Service-role access does not exercise these policies. Application authorization tests cannot prove deployed RLS behavior.
+
+## Phase 1 migration gate
+
+The bot repository contains `scripts/inspect-phase1-catalog.sql` and the expand/enforce delete-confirmation migrations. They check the existing foreign key and requester-binding constraints before changing the pending-action schema. The enforcement migration removes unbound legacy delete prompts, not financial transactions or unrelated edit actions.
+
+`consume_delete_confirmation` locks the account, pending request, and target, checks expiry using the database clock after lock waits, and consumes the prompt with the deletion in one transaction. Execution is restricted to the service role. The bot keeps this path disabled until migration and external acceptance checks pass.
+
+Native PostgreSQL verification covers database behavior. The guarded production rollout applied both migrations after backup and recovery verification. Supabase exposed the RPC, and 26 authenticated scenarios passed against the updated dashboard running locally with production Supabase and disposable records. The fixtures were removed. Dashboard deployment is pending; actual WhatsApp confirmation delivery and reply binding remain unverified, so deletion confirmation stays disabled.
+
+Mutation origin checks use the inbound `Host` header with the request scheme. Next.js can normalize a loopback request URL to `localhost`, which must not change whether the browser's actual origin is accepted.

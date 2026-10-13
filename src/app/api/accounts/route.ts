@@ -1,149 +1,110 @@
 import { createAdminClient } from '@/lib/supabase-server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { requireUser, requireAccountOwner } from '@/lib/server-auth';
+import { apiError, checkMutationRequest } from '@/lib/api-response';
+import { isRecord, isUuid } from '@/lib/financial-validation';
 import { NextResponse } from 'next/server';
 
-async function getAuthUser() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } },
-  );
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
-}
-
-// GET: list accounts for the signed-in user
-// NOTE: Supabase JS client does not support raw SQL subqueries in .or()
-// Split into two queries and merge instead.
 export async function GET() {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const admin = createAdminClient();
-
-  // 1. Accounts owned by user
-  const { data: owned } = await admin
-    .from('accounts')
-    .select('*')
-    .eq('owner_id', user.id)
-    .eq('is_active', true);
-
-  // 2. Accounts user is a member of (via members table)
-  const { data: memberships } = await admin
-    .from('members')
-    .select('account_id, role')
-    .eq('user_id', user.id);
-
-  const memberIds = (memberships ?? []).map((m) => m.account_id);
-  let memberAccounts: Record<string, unknown>[] = [];
-  if (memberIds.length > 0) {
-    const { data } = await admin
-      .from('accounts')
-      .select('*')
-      .in('id', memberIds)
-      .eq('is_active', true);
-    memberAccounts = data ?? [];
+  try {
+    const auth = await requireUser();
+    if (!auth.ok) return auth.response;
+    const db = createAdminClient();
+    const owned = await db.from('accounts').select('*').eq('owner_id', auth.user.id).eq('is_active', true);
+    if (owned.error) return apiError(503, 'dependency_unavailable');
+    const memberships = await db.from('members').select('account_id').eq('user_id', auth.user.id);
+    if (memberships.error) return apiError(503, 'dependency_unavailable');
+    const memberIds = (memberships.data ?? []).map(m => m.account_id);
+    const memberAccounts = memberIds.length
+      ? await db.from('accounts').select('*').in('id', memberIds).eq('is_active', true)
+      : { data: [], error: null };
+    if (memberAccounts.error) return apiError(503, 'dependency_unavailable');
+    const unique = new Map<string, Record<string, unknown>>();
+    for (const account of [...owned.data ?? [], ...memberAccounts.data ?? []]) {
+      unique.set(account.id, { ...account, role: account.owner_id === auth.user.id ? 'owner' : 'member' });
+    }
+    return NextResponse.json([...unique.values()]);
+  } catch {
+    return apiError(500, 'internal_error');
   }
-
-  // Merge with roles, deduplicate by id
-  const ownedWithRole = (owned ?? []).map((a) => ({ ...a, role: 'owner' }));
-  const memberWithRole = memberAccounts.map((a) => {
-    const membership = memberships?.find((m) => m.account_id === a.id);
-    return { ...a, role: membership?.role ?? 'member' };
-  });
-
-  const all = [...ownedWithRole, ...memberWithRole];
-  const unique = all.filter((a, i) => all.findIndex((b) => b.id === a.id) === i);
-
-  return NextResponse.json(unique);
 }
 
 // POST: create a new account and seed default categories
 export async function POST(req: Request) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const { name, type } = await req.json();
-  const admin = createAdminClient();
-
-  const { data: account, error } = await admin
-    .from('accounts')
-    .insert({ name, type, owner_id: user.id, language: 'id' })
-    .select()
-    .single();
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  // Seed default categories via the SQL function we created in Phase 1
-  await admin.rpc('seed_categories', { p_account_id: account.id });
-
-  const { data: existingMember } = await admin
-    .from('members')
-    .select('display_name')
-    .eq('user_id', user.id)
-    .not('display_name', 'is', null)
-    .limit(1)
-    .single();
-
-  // Add creator as owner member
-  await admin.from('members').insert({
-    account_id: account.id,
-    user_id: user.id,
-    role: 'owner',
-    display_name: existingMember?.display_name ?? user.user_metadata?.full_name ?? null,
-  });
-
-  return NextResponse.json(account);
+  try {
+    const auth = await requireUser();
+    if (!auth.ok) return auth.response;
+    const check = checkMutationRequest(req, true);
+    if (check) return check;
+    const body = await req.json().catch(() => null);
+    if (!isRecord(body) || Object.keys(body).some(k => !['name', 'type'].includes(k)) ||
+        typeof body.name !== 'string' || !body.name.trim() || (body.type !== 'personal' && body.type !== 'group'))
+      return apiError(400, 'invalid_request');
+    const db = createAdminClient();
+    const inserted = await db.from('accounts')
+      .insert({ name: body.name.trim(), type: body.type, owner_id: auth.user.id, language: 'id' }).select('*').single();
+    if (inserted.error) return apiError(503, 'dependency_unavailable');
+    if (!inserted.data) return apiError(404, 'not_found');
+    const seeded = await db.rpc('seed_categories', { p_account_id: inserted.data.id });
+    if (seeded.error) return apiError(503, 'dependency_unavailable');
+    const profile = await db.from('members').select('display_name').eq('user_id', auth.user.id)
+      .not('display_name', 'is', null).limit(1).maybeSingle();
+    if (profile.error) return apiError(503, 'dependency_unavailable');
+    const owner = await db.from('members').insert({
+      account_id: inserted.data.id, user_id: auth.user.id, role: 'owner',
+      display_name: profile.data?.display_name ??
+        (typeof auth.user.user_metadata.full_name === 'string' ? auth.user.user_metadata.full_name : null),
+    }).select('id').single();
+    if (owner.error) return apiError(503, 'dependency_unavailable');
+    if (!owner.data) return apiError(404, 'not_found');
+    return NextResponse.json(inserted.data);
+  } catch {
+    return apiError(500, 'internal_error');
+  }
 }
 
 // PATCH: edit account name and type
 export async function PATCH(req: Request) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const { id, name, type } = await req.json();
-  if (!id || !name?.trim())
-    return NextResponse.json({ error: 'Missing id or name' }, { status: 400 });
-
-  const admin = createAdminClient();
-
-  // Only owner can edit
-  const { data, error } = await admin
-    .from('accounts')
-    .update({ name: name.trim(), type })
-    .eq('id', id)
-    .eq('owner_id', user.id)
-    .select()
-    .single();
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  try {
+    const auth = await requireUser();
+    if (!auth.ok) return auth.response;
+    const check = checkMutationRequest(req, true);
+    if (check) return check;
+    const body = await req.json().catch(() => null);
+    if (!isRecord(body) || Object.keys(body).some(k => !['id', 'name', 'type'].includes(k)) ||
+        !isUuid(body.id) || typeof body.name !== 'string' || !body.name.trim() ||
+        (body.type !== undefined && body.type !== 'personal' && body.type !== 'group'))
+      return apiError(400, 'invalid_request');
+    const access = await requireAccountOwner(body.id, auth.user);
+    if (!access.ok) return access.response;
+    const fields: { name: string; type?: 'personal' | 'group' } = { name: body.name.trim() };
+    if (body.type !== undefined) fields.type = body.type;
+    const saved = await createAdminClient().from('accounts').update(fields)
+      .eq('id', body.id).eq('owner_id', auth.user.id).eq('is_active', true).select('*').maybeSingle();
+    if (saved.error) return apiError(503, 'dependency_unavailable');
+    if (!saved.data) return apiError(404, 'not_found');
+    return NextResponse.json(saved.data);
+  } catch {
+    return apiError(500, 'internal_error');
+  }
 }
 
 // DELETE: soft delete account
 export async function DELETE(req: Request) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get('id');
-  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
-
-  const admin = createAdminClient();
-
-  const { error } = await admin
-    .from('accounts')
-    .update({ is_active: false })
-    .eq('id', id)
-    .eq('owner_id', user.id);
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  await admin.from('members').delete().eq('account_id', id);
-
-  return NextResponse.json({ ok: true });
+  try {
+    const auth = await requireUser();
+    if (!auth.ok) return auth.response;
+    const check = checkMutationRequest(req, false);
+    if (check) return check;
+    const id = new URL(req.url).searchParams.get('id');
+    if (!isUuid(id)) return apiError(400, 'invalid_request');
+    const access = await requireAccountOwner(id, auth.user);
+    if (!access.ok) return access.response;
+    const deactivated = await createAdminClient().from('accounts').update({ is_active: false })
+      .eq('id', id).eq('owner_id', auth.user.id).eq('is_active', true).select('id').maybeSingle();
+    if (deactivated.error) return apiError(503, 'dependency_unavailable');
+    if (!deactivated.data) return apiError(404, 'not_found');
+    return NextResponse.json({ ok: true });
+  } catch {
+    return apiError(500, 'internal_error');
+  }
 }

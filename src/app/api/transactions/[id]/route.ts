@@ -1,115 +1,75 @@
 import { createAdminClient } from '@/lib/supabase-server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { requireUser } from '@/lib/server-auth';
+import { apiError, checkMutationRequest } from '@/lib/api-response';
+import { requireResource } from '@/lib/resource-access';
+import { isBusinessDate, parseAmount, parseFinancialJson } from '@/lib/financial-validation';
+import { parseTransactionInput, validateTransactionCategory } from '@/lib/transaction-validation';
 import { NextResponse } from 'next/server';
 
-async function getAuthUser() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } },
-  );
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
-}
+const transactionSnapshotFields = ['amount', 'type', 'date', 'description', 'category_id'] as const;
 
-async function isAccountOwner(
-  admin: ReturnType<typeof createAdminClient>,
-  transactionId: string,
-  userId: string,
-) {
-  const { data: txn } = await admin
-    .from('transactions')
-    .select('account_id')
-    .eq('id', transactionId)
-    .single();
-  if (!txn) return false;
-  const { data: account } = await admin
-    .from('accounts')
-    .select('owner_id')
-    .eq('id', txn.account_id)
-    .single();
-  return account?.owner_id === userId;
-}
-
-async function getDisplayName(
-  admin: ReturnType<typeof createAdminClient>,
-  transactionId: string,
-  userId: string,
-) {
-  // Get account_id from transaction
-  const { data: txn } = await admin
-    .from('transactions')
-    .select('account_id')
-    .eq('id', transactionId)
-    .single();
-  if (!txn) return null;
-  // Look up display_name from members
-  const { data: member } = await admin
-    .from('members')
-    .select('display_name')
-    .eq('account_id', txn.account_id)
-    .eq('user_id', userId)
-    .single();
-  return member?.display_name ?? null;
-}
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const admin = createAdminClient();
-
-  // Check user is at least a member of this account
-  const { data: txn } = await admin.from('transactions').select('account_id').eq('id', id).single();
-  if (!txn) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-
-  const { data: membership } = await admin
-    .from('members')
-    .select('id')
-    .eq('account_id', txn.account_id)
-    .eq('user_id', user.id)
-    .single();
-  if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-
-  // Get editor's display name
-  const { data: member } = await admin
-    .from('members')
-    .select('display_name')
-    .eq('account_id', txn.account_id)
-    .eq('user_id', user.id)
-    .single();
-
-  const body = await req.json();
-  const { data, error } = await admin
-    .from('transactions')
-    .update({
-      ...body,
-      updated_at: new Date().toISOString(),
-      edited_by_name: member?.display_name ?? user.email ?? null,
-    })
-    .eq('id', id)
-    .select('*, categories(name)')
-    .single();
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  try {
+    const auth = await requireUser();
+    if (!auth.ok) return auth.response;
+    const requestError = checkMutationRequest(req, true);
+    if (requestError) return requestError;
+    let body: unknown;
+    try {
+      body = parseFinancialJson(await req.text());
+    } catch {
+      return apiError(400, 'invalid_request');
+    }
+    const input = parseTransactionInput(body, false);
+    if (!input) return apiError(400, 'invalid_request');
+    const { id } = await params;
+    const resource = await requireResource('transactions', id, auth.user, false);
+    if (!resource.ok) return resource.response;
+    const old = resource.row;
+    const amount = input.amount ?? parseAmount(old.amount);
+    const type = input.type ?? old.type;
+    const date = input.date ?? old.date;
+    const description = input.description ?? old.description;
+    const categoryId = Object.hasOwn(input, 'category_id') ? input.category_id ?? null : old.category_id;
+    if (amount === null || (type !== 'income' && type !== 'expense') || !isBusinessDate(date) ||
+        typeof description !== 'string' || (categoryId !== null && typeof categoryId !== 'string'))
+      return apiError(400, 'invalid_request');
+    const db = createAdminClient();
+    const categoryError = await validateTransactionCategory(db, resource.access.accountId, type, categoryId,
+      !Object.hasOwn(input, 'category_id') && !Object.hasOwn(input, 'type'));
+    if (categoryError) return categoryError;
+    let update = db.from('transactions').update({
+      ...input,
+      edited_by_name: resource.access.displayName, updated_at: new Date().toISOString(),
+    }).eq('id', id).eq('account_id', resource.access.accountId);
+    for (const field of transactionSnapshotFields) {
+      update = old[field] === null ? update.is(field, null) : update.eq(field, old[field]);
+    }
+    const updated = await update.select('*,categories(name)').maybeSingle();
+    if (updated.error) return apiError(503, 'dependency_unavailable');
+    if (!updated.data) return apiError(409, 'conflict');
+    return NextResponse.json(updated.data);
+  } catch {
+    return apiError(500, 'internal_error');
+  }
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const admin = createAdminClient();
-  const owner = await isAccountOwner(admin, id, user.id);
-  if (!owner) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-
-  const { error } = await admin.from('transactions').delete().eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const auth = await requireUser();
+    if (!auth.ok) return auth.response;
+    const requestError = checkMutationRequest(req, false);
+    if (requestError) return requestError;
+    const { id } = await params;
+    const resource = await requireResource('transactions', id, auth.user, true);
+    if (!resource.ok) return resource.response;
+    const removed = await createAdminClient().from('transactions').delete()
+      .eq('id', id).eq('account_id', resource.access.accountId).select('id').maybeSingle();
+    if (removed.error) return apiError(503, 'dependency_unavailable');
+    if (!removed.data) return apiError(404, 'not_found');
+    return NextResponse.json({ ok: true });
+  } catch {
+    return apiError(500, 'internal_error');
+  }
 }

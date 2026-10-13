@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase-server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { requireUser, requireAccountOwner } from '@/lib/server-auth';
+import { apiError, checkMutationRequest } from '@/lib/api-response';
 import { NextResponse } from 'next/server';
 
 function generateCode(accountName: string): string {
@@ -12,41 +12,30 @@ function generateCode(accountName: string): string {
   return prefix + '-' + suffix;
 }
 
-export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params; // Next.js 15+: params is a Promise
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } },
-  );
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const admin = createAdminClient();
-
-  // Verify user owns this account
-  const { data: account } = await admin
-    .from('accounts')
-    .select('name')
-    .eq('id', id)
-    .eq('owner_id', user.id)
-    .single();
-  if (!account) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-
-  // Invalidate old unused codes for this account
-  await admin.from('link_codes').update({ used: true }).eq('account_id', id).eq('used', false);
-
-  const code = generateCode(account.name);
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-
-  await admin.from('link_codes').insert({
-    account_id: id,
-    code,
-    expires_at: expiresAt,
-  });
-
-  return NextResponse.json({ code, expiresAt });
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const auth = await requireUser();
+    if (!auth.ok) return auth.response;
+    const check = checkMutationRequest(req, false);
+    if (check) return check;
+    const { id } = await params;
+    const access = await requireAccountOwner(id, auth.user);
+    if (!access.ok) return access.response;
+    const db = createAdminClient();
+    const account = await db.from('accounts').select('name')
+      .eq('id', id).eq('owner_id', auth.user.id).eq('is_active', true).maybeSingle();
+    if (account.error) return apiError(503, 'dependency_unavailable');
+    if (!account.data) return apiError(404, 'not_found');
+    const retired = await db.from('link_codes').update({ used: true }).eq('account_id', id).eq('used', false);
+    if (retired.error) return apiError(503, 'dependency_unavailable');
+    const code = generateCode(account.data.name);
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const saved = await db.from('link_codes').insert({ account_id: id, code, expires_at: expiresAt })
+      .select('id,code,expires_at').single();
+    if (saved.error) return apiError(503, 'dependency_unavailable');
+    if (!saved.data) return apiError(404, 'not_found');
+    return NextResponse.json({ code: saved.data.code, expiresAt: saved.data.expires_at });
+  } catch {
+    return apiError(500, 'internal_error');
+  }
 }

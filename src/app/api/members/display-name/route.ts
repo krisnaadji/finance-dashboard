@@ -1,31 +1,27 @@
 import { createAdminClient } from '@/lib/supabase-server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { requireUser, requireAccountMember } from '@/lib/server-auth';
+import { apiError, checkMutationRequest } from '@/lib/api-response';
+import { isRecord, isUuid } from '@/lib/financial-validation';
 import { NextResponse } from 'next/server';
 
 export async function PATCH(req: Request) {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } },
-  );
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const { accountId, displayName } = await req.json();
-  if (!accountId || !displayName?.trim())
-    return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
-
-  const admin = createAdminClient();
-  const { error } = await admin
-    .from('members')
-    .update({ display_name: displayName.trim() })
-    .eq('account_id', accountId)
-    .eq('user_id', user.id);
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+  try {
+    const auth = await requireUser();
+    if (!auth.ok) return auth.response;
+    const check = checkMutationRequest(req, true);
+    if (check) return check;
+    const body = await req.json().catch(() => null);
+    if (!isRecord(body) || Object.keys(body).some(k => !['accountId', 'displayName'].includes(k)) ||
+        !isUuid(body.accountId) || typeof body.displayName !== 'string' || !body.displayName.trim())
+      return apiError(400, 'invalid_request');
+    const access = await requireAccountMember(body.accountId, auth.user);
+    if (!access.ok) return access.response;
+    const saved = await createAdminClient().from('members').update({ display_name: body.displayName.trim() })
+      .eq('account_id', body.accountId).eq('user_id', auth.user.id).select('id').maybeSingle();
+    if (saved.error) return apiError(503, 'dependency_unavailable');
+    if (!saved.data) return apiError(404, 'not_found');
+    return NextResponse.json({ ok: true });
+  } catch {
+    return apiError(500, 'internal_error');
+  }
 }

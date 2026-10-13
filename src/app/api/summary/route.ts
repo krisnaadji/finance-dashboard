@@ -1,21 +1,31 @@
 import { createAdminClient } from '@/lib/supabase-server';
 import { NextResponse } from 'next/server';
+import { requireUser, requireAccountMember } from '@/lib/server-auth';
+import { isUuid, isBusinessDate } from '@/lib/financial-validation';
+import { apiError } from '@/lib/api-response';
 
 export async function GET(req: Request) {
+  try {
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
   const { searchParams } = new URL(req.url);
   const accountId = searchParams.get('account_id');
+  if (!isUuid(accountId)) return apiError(400, 'invalid_request');
+  const access = await requireAccountMember(accountId, auth.user);
+  if (!access.ok) return access.response;
   const from = searchParams.get('from');
   const to = searchParams.get('to');
-  if (!accountId || !from || !to)
-    return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+  if (!isBusinessDate(from) || !isBusinessDate(to) || from > to)
+    return apiError(400, 'invalid_request');
 
   const admin = createAdminClient();
-  const { data: txns } = await admin
+  const { data: txns, error } = await admin
     .from('transactions')
     .select('id, amount, type, description, date, category_id, categories(name)')
     .eq('account_id', accountId)
     .gte('date', from)
     .lte('date', to);
+  if (error) return apiError(503, 'dependency_unavailable');
 
   const rows = txns ?? [];
   const income = rows.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
@@ -75,4 +85,7 @@ export async function GET(req: Request) {
     topExpenses,
     topIncomes,
   });
+  } catch {
+    return apiError(500, 'internal_error');
+  }
 }

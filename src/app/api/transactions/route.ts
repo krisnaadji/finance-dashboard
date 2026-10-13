@@ -1,33 +1,32 @@
 import { createAdminClient } from '@/lib/supabase-server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { requireUser, requireAccountMember } from '@/lib/server-auth';
+import { isUuid, isBusinessDate, parseFinancialJson } from '@/lib/financial-validation';
+import { apiError, checkMutationRequest } from '@/lib/api-response';
+import { parseTransactionInput, validateTransactionCategory } from '@/lib/transaction-validation';
 
-async function getAuthUser() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } },
-  );
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
-}
 
 export async function GET(req: Request) {
+  try {
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
   const { searchParams } = new URL(req.url);
   const accountId = searchParams.get('account_id');
+  if (!isUuid(accountId)) return apiError(400, 'invalid_request');
+  const access = await requireAccountMember(accountId, auth.user);
+  if (!access.ok) return access.response;
   const from = searchParams.get('from');
   const to = searchParams.get('to');
   const type = searchParams.get('type');
   const search = searchParams.get('search');
   const categoryId = searchParams.get('category_id');
-  const page = Math.max(1, Number(searchParams.get('page') ?? '1'));
-  const pageSize = Math.min(99999, Math.max(1, Number(searchParams.get('page_size') ?? '20')));
-
-  if (!accountId) return NextResponse.json({ error: 'Missing account_id' }, { status: 400 });
+  const page = Number(searchParams.get('page') ?? '1');
+  const pageSize = Number(searchParams.get('page_size') ?? '20');
+  if ((from && !isBusinessDate(from)) || (to && !isBusinessDate(to)) ||
+      (from && to && from > to) || (type && type !== 'income' && type !== 'expense') ||
+      (categoryId && !isUuid(categoryId)) || !Number.isSafeInteger(page) || page < 1 ||
+      !Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 99999 ||
+      !Number.isSafeInteger((page - 1) * pageSize)) return apiError(400, 'invalid_request');
 
   const admin = createAdminClient();
   const from_ = (page - 1) * pageSize;
@@ -47,7 +46,8 @@ export async function GET(req: Request) {
   if (search) query = query.ilike('description', `%${search}%`);
   if (categoryId) query = query.eq('category_id', categoryId);
 
-  const { data, count } = await query;
+  const { data, count, error } = await query;
+  if (error) return apiError(503, 'dependency_unavailable');
   return NextResponse.json({
     data: data ?? [],
     total: count ?? 0,
@@ -55,126 +55,64 @@ export async function GET(req: Request) {
     pageSize,
     totalPages: Math.ceil((count ?? 0) / pageSize),
   });
+  } catch {
+    return apiError(500, 'internal_error');
+  }
 }
 
 // POST: create a transaction from the dashboard
 export async function POST(req: Request) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
-
-  const {
-    account_id,
-    description,
-    amount,
-    type,
-    date,
-    category_id,
-  }: {
-    account_id?: string;
-    description?: string;
-    amount?: number | string;
-    type?: string;
-    date?: string;
-    category_id?: string | null;
-  } = body;
-
-  // Validation
-  if (!account_id) return NextResponse.json({ error: 'Missing account_id' }, { status: 400 });
-  if (!type || (type !== 'expense' && type !== 'income'))
-    return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
-  const amt = typeof amount === 'string' ? Number(amount) : amount;
-  if (amt === undefined || amt === null || isNaN(Number(amt)) || Number(amt) <= 0)
-    return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date))
-    return NextResponse.json({ error: 'Invalid date' }, { status: 400 });
-
-  const admin = createAdminClient();
-
-  // Verify caller is a member of the account
-  const { data: membership } = await admin
-    .from('members')
-    .select('display_name')
-    .eq('account_id', account_id)
-    .eq('user_id', user.id)
-    .single();
-  if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-
-  // Insert the transaction
-  const { data: txn, error } = await admin
-    .from('transactions')
-    .insert({
-      account_id,
-      category_id: category_id || null,
-      amount: Number(amt),
-      type,
-      description: description ?? '',
-      date,
-      raw_message: null,
-      wa_user_message_id: null,
-      recorded_by_name: membership.display_name ?? user.email ?? null,
-      recorded_by_phone: null,
-    })
-    .select('*, categories(name)')
-    .single();
-
-  if (error || !txn) {
-    return NextResponse.json(
-      { error: error?.message ?? 'Failed to create transaction' },
-      { status: 500 },
-    );
-  }
-
-  // Compute budget warning (same logic as bot's createTxn)
-  let budgetWarning: {
-    category_name: string;
-    spent: number;
-    limit: number;
-    pct: number;
-    over: boolean;
-  } | null = null;
-
-  if (type === 'expense' && category_id) {
-    const { data: budget } = await admin
-      .from('budgets')
-      .select('amount')
-      .eq('account_id', account_id)
-      .eq('category_id', category_id)
-      .single();
-
-    if (budget) {
-      const now = new Date();
-      const from = new Date(now.getFullYear(), now.getMonth(), 1)
-        .toISOString()
-        .split('T')[0];
-      const to = now.toISOString().split('T')[0];
-
-      const { data: spendRows } = await admin
-        .from('transactions')
-        .select('amount')
-        .eq('account_id', account_id)
-        .eq('category_id', category_id)
-        .eq('type', 'expense')
-        .gte('date', from)
-        .lte('date', to);
-
-      const totalSpent = (spendRows ?? []).reduce((s, r) => s + Number(r.amount), 0);
-      const pct = Math.round((totalSpent / Number(budget.amount)) * 100);
-      const over = totalSpent > Number(budget.amount);
-
-      if (over || pct >= 80) {
-        budgetWarning = {
-          category_name: (txn.categories as { name?: string } | null)?.name ?? '',
-          spent: totalSpent,
-          limit: Number(budget.amount),
-          pct,
-          over,
-        };
+  try {
+    const auth = await requireUser();
+    if (!auth.ok) return auth.response;
+    const requestError = checkMutationRequest(req, true);
+    if (requestError) return requestError;
+    const input = parseTransactionInput(await req.text().then(parseFinancialJson).catch(() => null), true);
+    if (!input) return apiError(400, 'invalid_request');
+    const access = await requireAccountMember(input.account_id!, auth.user);
+    if (!access.ok) return access.response;
+    const admin = createAdminClient();
+    const categoryError = await validateTransactionCategory(admin, input.account_id!, input.type!, input.category_id ?? null, false);
+    if (categoryError) return categoryError;
+    const { data: txn, error } = await admin.from('transactions').insert({
+      account_id: input.account_id!, amount: input.amount!, type: input.type!, date: input.date!,
+      description: input.description ?? '', category_id: input.category_id ?? null,
+      raw_message: null, wa_user_message_id: null,
+      recorded_by_name: access.access.displayName, recorded_by_phone: null,
+    }).select('*,categories(name)').single();
+    if (error) return apiError(503, 'dependency_unavailable');
+    if (!txn) return apiError(404, 'not_found');
+    const type = input.type!;
+    const category_id = input.category_id ?? null;
+    const account_id = input.account_id!;
+    let budgetWarning: { category_name: string; spent: number; limit: number; pct: number; over: boolean } | null = null;
+    let budgetWarningError: string | undefined;
+    if (type === 'expense' && category_id) {
+      const budget = await admin.from('budgets').select('amount').eq('account_id', account_id)
+        .eq('category_id', category_id).maybeSingle();
+      if (budget.error) budgetWarningError = 'dependency_unavailable';
+      else if (budget.data) {
+        const now = new Date();
+        const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        const to = now.toISOString().split('T')[0];
+        const spend = await admin.from('transactions').select('amount').eq('account_id', account_id)
+          .eq('category_id', category_id).eq('type', 'expense').gte('date', from).lte('date', to);
+        const limit = Number(budget.data.amount);
+        const totalSpent = (spend.data ?? []).reduce((sum, row) => sum + Number(row.amount), 0);
+        if (spend.error || !Number.isFinite(limit) || limit <= 0 || !Number.isFinite(totalSpent)) {
+          budgetWarningError = 'dependency_unavailable';
+        } else {
+          const pct = Math.round(totalSpent / limit * 100);
+          const over = totalSpent > limit;
+          if (over || pct >= 80) budgetWarning = {
+            category_name: (txn.categories as { name?: string } | null)?.name ?? '',
+            spent: totalSpent, limit, pct, over,
+          };
+        }
       }
     }
+    return NextResponse.json({ transaction: txn, budgetWarning, ...(budgetWarningError ? { budgetWarningError } : {}) });
+  } catch {
+    return apiError(500, 'internal_error');
   }
-
-  return NextResponse.json({ transaction: txn, budgetWarning });
 }

@@ -1,6 +1,6 @@
 # 📊 Finance Bot — Dashboard
 
-Web dashboard for the WhatsApp Finance Bot. View transactions, manage accounts, invite members, and generate WhatsApp setup codes. Built with Next.js 15 + Supabase.
+Web dashboard for the WhatsApp Finance Bot. View transactions, manage accounts, invite members, and generate WhatsApp setup codes. Built with Next.js 16 + Supabase.
 
 ---
 
@@ -56,7 +56,7 @@ Browser
   │
   └── Supabase
         ├── Auth (Google OAuth)
-        └── PostgreSQL (RLS enforced)
+        └── PostgreSQL (server admin client bypasses RLS)
 ```
 
 > See [README-database.md](https://github.com/krisnaadji/finance-dashboard/blob/main/README-database.md) for full schema, table definitions, and ER diagram.
@@ -67,11 +67,11 @@ Browser
 
 | Layer      | Tech                          | Notes                            |
 |------------|-------------------------------|----------------------------------|
-| Framework  | Next.js 15 (App Router)       | React Server + Client Components |
+| Framework  | Next.js 16 (App Router)       | React Server + Client Components |
 | Language   | TypeScript                    | Strict mode                      |
 | Styling    | Tailwind CSS                  | Dark glass design system         |
 | Auth       | Supabase Auth + Google OAuth  | `@supabase/ssr`                  |
-| Database   | Supabase PostgreSQL           | RLS via anon key                 |
+| Database   | Supabase PostgreSQL           | Admin client in API routes — ownership enforced in app code |
 | Charts     | Recharts                      | BarChart + PieChart              |
 | i18n       | next-intl                     | Indonesian + English             |
 | Linting    | ESLint v9 + Prettier          | `eslint.config.mjs` (ESM)        |
@@ -122,6 +122,7 @@ src/
     CategoryPieChart.tsx                   # Recharts PieChart with legend
     TransactionTable.tsx                   # Card (mobile) + table (desktop) + inline edit
     LinkCodeModal.tsx                      # /setup CODE generator
+    AddTransactionModal.tsx                # Manual transaction entry form
 
   lib/
     supabase-browser.ts                    # createBrowserClient (client components)
@@ -274,6 +275,8 @@ const accountType = useAccountType();  // 'personal' | 'group'
 
 **Transaction list** — responsive: card view on mobile (description + amount + edit/delete + attribution), full table on desktop. Inline edit supports description, amount, date, type, and category.
 
+**Manual transaction entry** — `AddTransactionModal` is triggered from an "Add Transaction" button on both the Dashboard and Transactions pages. Writes go through `POST /api/transactions`, which uses `createAdminClient` and verifies the authenticated user owns or is a member of the target account server-side before inserting. Category dropdown filters by the selected transaction type (income vs expense). Available to both owners and members — anyone on an account can record a transaction.
+
 ---
 
 ## Known Limitations
@@ -284,3 +287,21 @@ const accountType = useAccountType();  // 'personal' | 'group'
 | Edit/delete account from bot  | ❌ Not built | Use dashboard Accounts page instead                 |
 | Edit/delete category from bot | ❌ Not built | Use dashboard Categories page instead               |
 | Receipt / bill photo parsing  | ❌ Not built | Planned — Gemini Vision can handle this             |
+
+## Financial input and offline checks
+
+Financial writes accept positive amounts up to `9999999999999.99`, with at most two nonzero decimal places. Server input uses plain decimal notation without currency separators or exponents; storage input is a canonical decimal string. Malformed values are rejected instead of rounded or defaulted to zero.
+
+Business dates use real calendar days in `YYYY-MM-DD` format, from 2000 through 2100. Invalid dates such as `2026-02-30` are rejected.
+
+Run `npm test -- tests/financialValidation.test.ts tests/apiResponse.test.ts` for money/date and origin/content-type boundaries. Run `npm test`, `npm run test:typecheck`, `npm run build`, and `npm run lint` for integration checks. Tests use disposable state and do not authorize production database changes or deployment.
+
+## Phase 1 security boundaries
+
+API routes verify the user at request time and check access to the active account before using the admin client. `accounts.owner_id` defines ownership; a member row claiming an owner role does not grant administration rights. Owners do not need a redundant member row.
+
+Transaction edits validate the resulting amount/type/category combination, write only supplied fields, and condition the update on the original financial snapshot. A stale or deleted record returns `409`. Inactive categories may remain on historical records but cannot be newly selected. Account and category removal deactivate them without deleting transaction history.
+
+Numeric request amounts use the original JSON token for exact decimal validation. The server runtime must support `JSON.parse` reviver source context, exercised on Node 24.14.1. Decimal-string inputs also work; unsupported numeric decoding fails closed.
+
+Local tests and anonymous API smoke checks are separate from the required disposable Supabase/Auth/PostgREST and actual gateway acceptance checks. Production migration and deployment are not part of local verification.
