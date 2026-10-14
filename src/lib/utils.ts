@@ -1,21 +1,22 @@
+import { businessDate, currentMonthRange } from './business-date';
+
 export function formatIDR(amount: number): string {
   return 'Rp' + amount.toLocaleString('id-ID');
 }
 
 export function formatDate(dateStr: string, locale = 'id-ID'): string {
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString(locale, {
+  return new Date(dateStr + 'T00:00:00Z').toLocaleDateString(locale, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+    timeZone: 'UTC',
   });
 }
 
 export function startOfMonth(): string {
-  const d = new Date();
-  d.setDate(1);
-  return d.toISOString().split('T')[0];
+  return currentMonthRange().from;
 }
 
 export function today(): string {
-  return new Date().toISOString().split('T')[0];
+  return businessDate(new Date());
 }

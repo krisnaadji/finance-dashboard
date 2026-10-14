@@ -1,3 +1,7 @@
+import { businessDate, calendarMonth, currentMonthRange, shiftCivilDay } from './business-date';
+
+export { currentMonthRange } from './business-date';
+
 type QueryResponse<Row> = {
   data: Row[] | null;
   error: { message: string } | null;
@@ -51,42 +55,21 @@ export type ResolvedReportingPeriod =
     };
 
 export function todayISO(now = new Date()): string {
-  return localDateISO(now);
+  return businessDate(now);
 }
 
-export function localDateISO(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
-}
-
-export function currentMonthRange(now = new Date()): { from: string; to: string } {
-  return {
-    from: localDateISO(new Date(now.getFullYear(), now.getMonth(), 1)),
-    to: todayISO(now),
-  };
-}
 
 export function monthRange(month: number, year: number): { from: string; to: string } {
-  return {
-    from: localDateISO(new Date(year, month - 1, 1)),
-    to: localDateISO(new Date(year, month, 0)),
-  };
+  return calendarMonth(year, month);
 }
 
 export function nextMonth(month: number, year: number): { month: number; year: number } {
-  const next = new Date(year, month, 1);
-
-  return { month: next.getMonth() + 1, year: next.getFullYear() };
+  const [nextYear, nextMonth] = calendarMonth(year, month + 1).from.split('-').map(Number);
+  return { month: nextMonth, year: nextYear };
 }
 
 export function previousDayISO(dateISO: string): string {
-  const date = new Date(`${dateISO}T00:00:00`);
-  date.setDate(date.getDate() - 1);
-
-  return localDateISO(date);
+  return shiftCivilDay(dateISO, -1);
 }
 
 export function isValidSalaryTarget(month?: number, year?: number): boolean {
@@ -149,9 +132,9 @@ async function resolveSalaryCycle(
     const latestSalary = latestRows.data?.[0];
     if (!latestSalary) return { ok: false, reason: 'salary_not_found' };
 
-    const latestDate = new Date(`${latestSalary.date}T00:00:00`);
-    salaryMonth = latestDate.getMonth() + 1;
-    salaryYear = latestDate.getFullYear();
+    const [year, month] = latestSalary.date.split('-').map(Number);
+    salaryMonth = month;
+    salaryYear = year;
   }
 
   const selectedRows = await queryIncomeRows(
