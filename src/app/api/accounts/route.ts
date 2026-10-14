@@ -36,27 +36,31 @@ export async function POST(req: Request) {
     const check = checkMutationRequest(req, true);
     if (check) return check;
     const body = await req.json().catch(() => null);
-    if (!isRecord(body) || Object.keys(body).some(k => !['name', 'type'].includes(k)) ||
-        typeof body.name !== 'string' || !body.name.trim() || (body.type !== 'personal' && body.type !== 'group'))
+    if (!isRecord(body) || Object.keys(body).some(k => !['name', 'type', 'operation_id'].includes(k)) ||
+        typeof body.name !== 'string' || !body.name.trim() ||
+        (body.type !== 'personal' && body.type !== 'group') || !isUuid(body.operation_id))
       return apiError(400, 'invalid_request');
     const db = createAdminClient();
-    const inserted = await db.from('accounts')
-      .insert({ name: body.name.trim(), type: body.type, owner_id: auth.user.id, language: 'id' }).select('*').single();
-    if (inserted.error) return apiError(503, 'dependency_unavailable');
-    if (!inserted.data) return apiError(404, 'not_found');
-    const seeded = await db.rpc('seed_categories', { p_account_id: inserted.data.id });
-    if (seeded.error) return apiError(503, 'dependency_unavailable');
     const profile = await db.from('members').select('display_name').eq('user_id', auth.user.id)
       .not('display_name', 'is', null).limit(1).maybeSingle();
     if (profile.error) return apiError(503, 'dependency_unavailable');
-    const owner = await db.from('members').insert({
-      account_id: inserted.data.id, user_id: auth.user.id, role: 'owner',
-      display_name: profile.data?.display_name ??
-        (typeof auth.user.user_metadata.full_name === 'string' ? auth.user.user_metadata.full_name : null),
-    }).select('id').single();
-    if (owner.error) return apiError(503, 'dependency_unavailable');
-    if (!owner.data) return apiError(404, 'not_found');
-    return NextResponse.json(inserted.data);
+    const metadataName = isRecord(auth.user.user_metadata) && typeof auth.user.user_metadata.full_name === 'string'
+      ? auth.user.user_metadata.full_name : null;
+    const created = await db.rpc('create_finance_account', {
+      p_user_id: auth.user.id,
+      p_operation_id: body.operation_id,
+      p_name: body.name.trim(),
+      p_type: body.type,
+      p_display_name: profile.data?.display_name ?? metadataName,
+    });
+    if (created.error) return apiError(503, 'dependency_unavailable');
+    if (!isRecord(created.data)) return apiError(503, 'dependency_unavailable');
+    if (created.data.code === 'invalid') return apiError(400, 'invalid_request');
+    if (created.data.code === 'forbidden') return apiError(403, 'forbidden');
+    if (created.data.code === 'conflict') return apiError(409, 'conflict');
+    if (created.data.code !== 'accepted' || !isRecord(created.data.account))
+      return apiError(503, 'dependency_unavailable');
+    return NextResponse.json(created.data.account);
   } catch {
     return apiError(500, 'internal_error');
   }

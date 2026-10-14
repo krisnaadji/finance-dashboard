@@ -21,16 +21,34 @@ export class DashboardDb {
   sequence = 10;
   users: Record<string, Row> = {};
   authAdminError = false;
+  rpcOverride: ((name: string, args: Row) => Promise<{ data: unknown; error: { code: string } | null }>) | null = null;
   auth = { admin: { getUserById: async (id: string) => ({
     data: { user: this.users[id] ?? null }, error: this.authAdminError ? { code: '08006' } : null,
   }) } };
   from(table: string) { return new Query(this, table); }
-  async rpc(name: string, args: Row) {
-    if (name !== 'seed_categories') throw new Error('Unexpected fixture RPC');
-    const failure = this.failures.findIndex(f => f.table === 'seed_categories');
-    if (failure >= 0) { this.failures.splice(failure, 1); return { data: null, error: { code: '08006' } }; }
-    this.tables.categories.push({ id: this.id(), account_id: args.p_account_id, name: 'Fixture expense', type: 'expense', is_active: true });
-    return { data: null, error: null };
+  async rpc(name: string, args: Row): Promise<{ data: unknown; error: { code: string } | null }> {
+    if (name === 'seed_categories') {
+      const failure = this.failures.findIndex(f => f.table === 'seed_categories');
+      if (failure >= 0) { this.failures.splice(failure, 1); return { data: null, error: { code: '08006' } }; }
+      this.tables.categories.push({ id: this.id(), account_id: args.p_account_id, name: 'Fixture expense', type: 'expense', is_active: true });
+      return { data: null, error: null };
+    }
+    if (this.rpcOverride) return this.rpcOverride(name, args);
+    if (name === 'finance_summary') return { data: {
+      income: '0.00', expense: '0.00', net: '0.00', categories: [],
+      spendingByCategoryId: {}, byMonth: {}, topExpenses: [], topIncomes: [],
+    }, error: null };
+    if (name === 'finance_budget_spending') return { data: { spendingByCategoryId: {} }, error: null };
+    if (name === 'replace_finance_link_code') return {
+      data: { code: 'accepted', linkCode: { code: args.p_code, expiresAt: '2026-10-15T00:00:00.000Z' } }, error: null,
+    };
+    if (name === 'create_finance_account') return { data: { code: 'accepted', account: {
+      id: this.id(), owner_id: args.p_user_id, name: args.p_name, type: args.p_type, is_active: true,
+    } }, error: null };
+    if (name === 'redeem_finance_invite') return { data: {
+      code: 'accepted', accountId: '10000000-0000-4000-8000-000000000001', accountName: 'Fixture',
+    }, error: null };
+    throw new Error('Unexpected fixture RPC');
   }
   id() { return `80000000-0000-4000-8000-${String(this.sequence++).padStart(12, '0')}`; }
 }
@@ -40,8 +58,12 @@ class Query implements PromiseLike<Result> {
   private limitValue: number | null = null; private bounds: [number,number] | null = null;
   private result: Promise<Result> | null = null;
   private ordering: { key: string; ascending: boolean }[] = [];
+  private amountText = false;
   constructor(private db: DashboardDb, private table: string) {}
-  select(_columns?: string, _options?: { count?: string }) { return this; }
+  select(columns?: string, _options?: { count?: string }) {
+    this.amountText = columns?.includes('amount_text:amount::text') ?? false;
+    return this;
+  }
   eq(key: string, value: unknown) {
     const numeric = key === 'amount' && (this.table === 'transactions' || this.table === 'budgets');
     const expected = numeric ? numericKey(value) : null;
@@ -112,6 +134,7 @@ class Query implements PromiseLike<Result> {
     if (this.bounds) selected = selected.slice(this.bounds[0],this.bounds[1]+1);
     if (this.limitValue !== null) selected = selected.slice(0,this.limitValue);
     const enriched = selected.map(r => ({ ...r,
+      ...(this.amountText ? { amount_text: typeof r.amount === 'string' ? r.amount : null } : {}),
       ...(this.table === 'transactions' ? { categories: this.db.tables.categories.find(c => c.id === r.category_id) ?? null } : {}),
       ...(this.table === 'invite_tokens' ? { accounts: this.db.tables.accounts.find(a => a.id === r.account_id) ?? null } : {}),
     }));

@@ -8,7 +8,8 @@ interface Transaction {
   id: string;
   date: string;
   description: string;
-  amount: number;
+  amount: string;
+  category_id: string | null;
   type: string;
   categories: { name: string } | null;
   recorded_by_name?: string;
@@ -55,7 +56,7 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
 
   function startEdit(txn: Transaction) {
     setEditing(txn.id);
-    const catMatch = cats.find((c) => c.name === txn.categories?.name);
+    const catMatch = cats.find((c) => c.id === txn.category_id);
     setEditForm({
       description: txn.description,
       amount: String(txn.amount),
@@ -72,7 +73,7 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         description: editForm.description,
-        amount: Number(editForm.amount),
+        amount: editForm.amount,
         type: editForm.type,
         date: editForm.date,
         category_id: editForm.category_id || null,

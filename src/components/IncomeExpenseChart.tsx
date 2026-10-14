@@ -8,7 +8,7 @@ import { formatIDR } from '@/lib/utils';
 import { GlassCard } from '@/components/ui/GlassCard';
 
 interface Props {
-  byMonth: Record<string, { income: number; expense: number }>;
+  byMonth: Record<string, { income: string; expense: string }>;
   title?: string;
 }
 
@@ -17,10 +17,12 @@ export function IncomeExpenseChart({ byMonth, title }: Props) {
 
   const data = Object.entries(byMonth)
     .sort()
-    .map(([month, vals]) => ({
-      month: new Date(month + '-01').toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }),
-      [t('income')]: vals.income,
-      [t('expense')]: vals.expense,
+    .map(([key, vals]) => ({
+      month: new Date(key + '-01').toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }),
+      [t('income')]: Number(vals.income),
+      [t('expense')]: Number(vals.expense),
+      exactIncome: vals.income,
+      exactExpense: vals.expense,
     }));
 
   return (
@@ -53,7 +55,10 @@ export function IncomeExpenseChart({ byMonth, title }: Props) {
             width={70}
           />
           <Tooltip
-            formatter={(value) => [formatIDR(Number(value)), '']}
+            formatter={(value, name, item) => [
+              formatIDR(name === t('income') ? item.payload.exactIncome : item.payload.exactExpense),
+              '',
+            ]}
             contentStyle={{
               background: 'rgba(8,12,16,0.95)',
               border: '1px solid rgba(255,255,255,0.12)',

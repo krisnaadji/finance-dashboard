@@ -29,7 +29,11 @@
     "confirmDelete": "Yakin ingin menghapus transaksi ini?",
     "filterFrom": "Dari",
     "filterTo": "Sampai",
-    "add": "Tambah"
+    "add": "Tambah",
+    "exportCsv": "Ekspor CSV",
+    "exporting": "Menyiapkan CSV...",
+    "exportFailed": "Transaksi tidak dapat diekspor. Coba lagi dengan filter saat ini.",
+    "exportLimitExceeded": "Ekspor terlalu besar. Persempit rentang tanggal atau filter, lalu coba lagi."
   },
   "addTransaction": {
     "title": "Tambah Transaksi",
@@ -61,7 +65,8 @@
     "linkBot": "Hubungkan WhatsApp",
     "generateCode": "Buat Kode",
     "codeInstruction": "Kirim pesan ini di WhatsApp:",
-    "codeExpiry": "Kode berlaku 15 menit"
+    "codeExpiry": "Kode berlaku 15 menit",
+    "createFailed": "Akun tidak dapat dibuat. Silakan coba lagi."
   },
   "categories": {
     "title": "Kategori",

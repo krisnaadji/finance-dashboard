@@ -22,15 +22,17 @@ it.each([linkCode,issueInvite])('inactive accounts cannot issue credentials',asy
 });
 it('inactive invitation target cannot grant membership or consume token',async()=>{
  const db=resetSecurityState(ids.outsider); db.tables.accounts[0].is_active=false;
+ db.rpcOverride=async(name)=>name==='redeem_finance_invite'
+  ? {data:{code:'forbidden'},error:null} : {data:null,error:{code:'08006'}};
  db.tables.invite_tokens=[{id:db.id(),account_id:ids.a,token:'fixture-token',used:false,expires_at:new Date(Date.now()+60000).toISOString()}];
  const before=db.tables.members.map(r=>({...r}));
  expect((await redeem(new Request('https://app.example/api/invite/fixture-token',{method:'POST'}),{params:Promise.resolve({token:'fixture-token'})})).status).toBe(403);
  expect(db.tables.members).toEqual(before); expect(db.tables.invite_tokens[0].used).toBe(false);
 });
-it('invitation write failure is not full success',async()=>{
+it('invitation procedure outage is not reported as success',async()=>{
  const db=resetSecurityState(ids.outsider);
  db.tables.invite_tokens=[{id:db.id(),account_id:ids.a,token:'fixture-token',used:false,expires_at:new Date(Date.now()+60000).toISOString()}];
- db.failures.push({table:'members',mode:'insert'});
+ db.rpcOverride=async()=>({data:null,error:{code:'08006'}});
  expect((await redeem(new Request('https://app.example/api/invite/fixture-token',{method:'POST'}),{params:Promise.resolve({token:'fixture-token'})})).status).toBe(503);
  expect(db.tables.invite_tokens[0].used).toBe(false);
 });

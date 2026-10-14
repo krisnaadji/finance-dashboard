@@ -17,8 +17,9 @@ interface Transaction {
   id: string;
   date: string;
   description: string;
-  amount: number;
+  amount: string;
   type: string;
+  category_id: string | null;
   categories: { name: string } | null;
 }
 
@@ -67,6 +68,8 @@ export default function TransactionsPage() {
   const [jumpInput, setJumpInput] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
 
   useEffect(() => {
     setCategories([]);
@@ -155,47 +158,38 @@ export default function TransactionsPage() {
   }
 
   async function exportCSV() {
-    if (!period.valid) return;
+    if (!period.valid || exporting) return;
     const exportCategoryId = categoryAccountId === accountId ? categoryId : '';
-
     const params = new URLSearchParams({
       account_id: accountId,
       from,
       to,
-      page: '1',
-      page_size: '99999',
       ...(type && { type }),
       ...(exportCategoryId && { category_id: exportCategoryId }),
       ...(search && { search }),
     });
 
-    const res = await fetch(`/api/transactions?${params}`);
-    const data = await res.json();
-    const rows = data.data ?? [];
-
-    if (!rows.length) return;
-
-    const headers = ['Date', 'Description', 'Category', 'Type', 'Amount'];
-    const lines = [
-      headers.join(','),
-      ...rows.map((t: Transaction) =>
-        [
-          t.date,
-          `"${(t.description ?? '').replace(/"/g, '""')}"`,
-          `"${(t.categories?.name ?? '—').replace(/"/g, '""')}"`,
-          t.type,
-          t.amount,
-        ].join(','),
-      ),
-    ];
-
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `transactions-${from}-${to}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    setExporting(true);
+    setExportError('');
+    try {
+      const res = await fetch(`/api/transactions/export?${params}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setExportError(body?.code === 'export_limit_exceeded' ? t('exportLimitExceeded') : t('exportFailed'));
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `transactions-${from}-${to}.csv`;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch {
+      setExportError(t('exportFailed'));
+    } finally {
+      setExporting(false);
+    }
   }
 
   if (!accountId)
@@ -220,11 +214,13 @@ export default function TransactionsPage() {
           <GlassButton variant="primary" onClick={() => setAddOpen(true)}>
             + Add
           </GlassButton>
-          <GlassButton variant="ghost" onClick={exportCSV} disabled={!period.valid}>
-            Export CSV
+          <GlassButton variant="ghost" onClick={exportCSV} disabled={!period.valid || exporting} aria-busy={exporting}>
+            {t('exportCsv')}
           </GlassButton>
         </div>
       </div>
+      {exporting && <p className="mb-3 text-sm text-white" role="status" aria-live="polite">{t('exporting')}</p>}
+      {exportError && <p className="mb-3 text-sm text-white" role="alert">{exportError}</p>}
 
       <AddTransactionModal
         accountId={accountId}

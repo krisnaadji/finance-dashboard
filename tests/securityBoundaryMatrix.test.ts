@@ -150,12 +150,19 @@ it.each<Failure>([
 });
 it.each([
   { boundary: scoped[0], table: 'transactions' }, { boundary: scoped[1], table: 'categories' },
-  { boundary: scoped[2], table: 'budgets' }, { boundary: scoped[3], table: 'transactions' },
-  { boundary: scoped[4], table: 'transactions' }, { boundary: scoped[6], table: 'members', skip: 1 },
+  { boundary: scoped[2], table: 'budgets' }, { boundary: scoped[6], table: 'members', skip: 1 },
 ])('$boundary.name dependency failures are not empty data and exceptions are generic', async ({ boundary, table, skip }) => {
   state.db.failures.push({ table, mode: 'read', skip });
   expect((await boundary.handler(requestFor(boundary))).status).toBe(503);
   state.db.failures.push({ table, mode: 'read', skip, throws: true });
+  const response = await boundary.handler(requestFor(boundary));
+  expect(response.status).toBe(500);
+  expect(await response.json()).toEqual({ error: 'Operation failed', code: 'internal_error' });
+});
+it.each([scoped[3], scoped[4]])('%s uses checked reporting RPC failures', async boundary => {
+  state.db.rpcOverride = async () => ({ data: null, error: { code: '08006' } });
+  expect((await boundary.handler(requestFor(boundary))).status).toBe(503);
+  state.db.rpcOverride = async () => { throw new Error('provider details'); };
   const response = await boundary.handler(requestFor(boundary));
   expect(response.status).toBe(500);
   expect(await response.json()).toEqual({ error: 'Operation failed', code: 'internal_error' });

@@ -155,6 +155,8 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000   # change to Vercel URL after deploy
 
 > **Security note:** `SUPABASE_SERVICE_KEY` bypasses Row Level Security. Only use it in API routes (`src/app/api/`), never in client components.
 
+For local development, point both public Supabase settings and the server service key at an isolated local Supabase project. Do not copy production keys into `.env.local`.
+
 ---
 
 ## Getting Started
@@ -305,3 +307,11 @@ Transaction edits validate the resulting amount/type/category combination, write
 Numeric request amounts use the original JSON token for exact decimal validation. The server runtime must support `JSON.parse` reviver source context, exercised on Node 24.14.1. Decimal-string inputs also work; unsupported numeric decoding fails closed.
 
 Local tests and anonymous API smoke checks are separate from the required disposable Supabase/Auth/PostgREST and actual gateway acceptance checks. Production migration and deployment are not part of local verification.
+
+## Reports and CSV exports
+
+Report totals cross the API boundary as exact decimal strings. Summary responses use `income`, `expense`, and `net`; category totals include both category IDs and labels so duplicate names remain distinct. Monthly and budget totals are also strings. Parse them with the money helpers instead of `Number`.
+
+`GET /api/transactions/export` accepts the same account, date, type, category, and search filters as the transaction table. The server checks current account membership and captures an immutable 15-minute snapshot before paging through it in batches of at most 500 rows. The route validates every row before returning a file, quotes each CSV cell, and prefixes formula-like description or category text. Empty exports contain the header row. Exports above 99,999 rows or 32 MiB return an error without a downloadable partial file.
+
+Unit tests cover filter parity, CSV escaping, authorization, missing pages, and export limits. PostgreSQL integration tests cover snapshot immutability and current membership. Running these tests does not verify a signed-in browser session; that requires an isolated Supabase Auth/PostgREST runtime.

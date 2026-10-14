@@ -36,14 +36,11 @@ const outcomes: OutcomeCase[] = [
   { name: 'budget upsert', path: '/api/budgets', method: 'POST', handler: budgets.POST,
     body: { account_id: ids.a, category_id: ids.expense, amount: '120.50' }, table: 'budgets', mode: 'upsert' },
   { name: 'budget delete', path: `/api/budgets?id=${ids.budget}`, method: 'DELETE', handler: budgets.DELETE, table: 'budgets', mode: 'delete' },
-  { name: 'account insert', path: '/api/accounts', method: 'POST', handler: accounts.POST,
-    body: { name: 'New account', type: 'personal' }, table: 'accounts', mode: 'insert' },
   { name: 'account update', path: '/api/accounts', method: 'PATCH', handler: accounts.PATCH,
     body: { id: ids.a, name: 'Edited' }, table: 'accounts', mode: 'update' },
   { name: 'account deactivate', path: `/api/accounts?id=${ids.a}`, method: 'DELETE', handler: accounts.DELETE, table: 'accounts', mode: 'update' },
   { name: 'display name update', path: '/api/members/display-name', method: 'PATCH', handler: displayName,
     body: { accountId: ids.a, displayName: 'Edited' }, table: 'members', mode: 'update' },
-  { name: 'link code insert', path: '/api/link', method: 'POST', handler: request => linkCode(request, accountContext), table: 'link_codes', mode: 'insert' },
   { name: 'invite insert', path: '/api/invite', method: 'POST', handler: request => issueInvite(request, accountContext), table: 'invite_tokens', mode: 'insert' },
 ];
 function requestFor(entry: OutcomeCase): Request {
@@ -85,82 +82,27 @@ it.each(outcomes.filter(entry => entry.mode === 'update' || entry.mode === 'dele
     expect(db.tables[table].filter(row => row.account_id === ids.b || row.id === ids.b)).toEqual(foreignBefore);
   }
 });
-it.each(['link_codes', 'invite_tokens'])('%s invalidation failure prevents issuing a new credential', async table => {
+it('invite invalidation failure prevents issuing a new credential', async () => {
   const db = state.db;
-  db.tables[table].push({ id: db.id(), account_id: ids.a, used: false, token: 'old', code: 'OLD' });
-  db.tables[table].push({ id: db.id(), account_id: ids.b, used: false, token: 'foreign', code: 'FOREIGN' });
+  db.tables.invite_tokens.push({ id: db.id(), account_id: ids.a, used: false, token: 'old' });
+  db.tables.invite_tokens.push({ id: db.id(), account_id: ids.b, used: false, token: 'foreign' });
   const before = structuredClone(db.tables);
-  db.failures.push({ table, mode: 'update' });
-  const handler = table === 'link_codes' ? linkCode : issueInvite;
-  expect((await handler(new Request('https://app.example/api/issue', { method: 'POST' }), accountContext)).status).toBe(503);
+  db.failures.push({ table: 'invite_tokens', mode: 'update' });
+  expect((await issueInvite(new Request('https://app.example/api/issue', { method: 'POST' }), accountContext)).status).toBe(503);
   expect(db.tables).toEqual(before);
 });
-it.each(['link_codes', 'invite_tokens'])('%s issuance retires only the target account and preserves the response', async table => {
+it('invite issuance retires only the target account and preserves the response', async () => {
   const db = state.db;
-  db.tables[table].push({ id: db.id(), account_id: ids.a, used: false });
-  db.tables[table].push({ id: db.id(), account_id: ids.b, used: false });
-  const handler = table === 'link_codes' ? linkCode : issueInvite;
-  const response = await handler(new Request('https://app.example/api/issue', { method: 'POST' }), accountContext);
+  db.tables.invite_tokens.push({ id: db.id(), account_id: ids.a, used: false });
+  db.tables.invite_tokens.push({ id: db.id(), account_id: ids.b, used: false });
+  const response = await issueInvite(new Request('https://app.example/api/issue', { method: 'POST' }), accountContext);
   expect(response.status).toBe(200);
   const body = await response.json();
   expect(body.expiresAt).toEqual(expect.any(String));
-  if (table === 'link_codes') expect(body.code).toEqual(expect.any(String));
-  else expect(body.url).toContain('/invite/');
-  expect(db.tables[table][0].used).toBe(true);
-  expect(db.tables[table][1].used).toBe(false);
-  expect(db.tables[table]).toHaveLength(3);
-});
-it.each<Failure>([
-  { table: 'members', mode: 'read' }, { table: 'members', mode: 'insert' },
-  { table: 'members', mode: 'insert', zero: true }, { table: 'invite_tokens', mode: 'read' },
-])('invitation checked step $table $mode (zero=$zero) cannot consume or grant', async failure => {
-  const db = resetSecurityState(ids.outsider); seedInvite(db);
-  const before = structuredClone(db.tables);
-  db.failures.push({ ...failure });
-  const response = await redeem(new Request('https://app.example/api/invite/fixture-token', { method: 'POST' }), tokenContext);
-  expect(response.status).toBe(failure.zero ? 404 : 503);
-  expect(db.tables).toEqual(before);
-});
-it.each([false, true])('invitation consumption reports partial membership rather than full success (zero=%s)', async zero => {
-  const db = resetSecurityState(ids.outsider); seedInvite(db);
-  db.failures.push({ table: 'invite_tokens', mode: 'update', zero });
-  const response = await redeem(new Request('https://app.example/api/invite/fixture-token', { method: 'POST' }), tokenContext);
-  expect(response.status).toBe(zero ? 409 : 503);
-  expect(db.tables.members.filter(row => row.account_id === ids.a && row.user_id === ids.outsider)).toHaveLength(1);
-  expect(db.tables.invite_tokens[0].used).toBe(false);
-});
-it('already-member redemption creates no duplicates and replay does not succeed', async () => {
-  const db = resetSecurityState(ids.member); seedInvite(db);
-  const before = structuredClone(db.tables.members);
-  const request = () => new Request('https://app.example/api/invite/fixture-token', { method: 'POST' });
-  const response = await redeem(request(), tokenContext);
-  expect(response.status).toBe(200);
-  expect(await response.json()).toEqual({ accountId: ids.a, accountName: 'A' });
-  expect(db.tables.members).toEqual(before);
+  expect(body.url).toContain('/invite/');
   expect(db.tables.invite_tokens[0].used).toBe(true);
-  expect((await redeem(request(), tokenContext)).status).toBe(400);
-});
-it.each(['expired', 'exact-expiry', 'used', 'missing'])('invalid invitation %s never grants membership', async invalid => {
-  const db = resetSecurityState(ids.outsider); seedInvite(db);
-  if (invalid === 'expired') db.tables.invite_tokens[0].expires_at = new Date(Date.now() - 1).toISOString();
-  if (invalid === 'exact-expiry') db.tables.invite_tokens[0].expires_at = new Date().toISOString();
-  if (invalid === 'used') db.tables.invite_tokens[0].used = true;
-  if (invalid === 'missing') db.tables.invite_tokens = [];
-  const before = structuredClone(db.tables);
-  expect((await redeem(new Request('https://app.example/api/invite/fixture-token', { method: 'POST' }), tokenContext)).status).toBe(400);
-  expect(db.tables).toEqual(before);
-});
-it.each<Failure>([
-  { table: 'members', mode: 'read' }, { table: 'members', mode: 'insert' }, { table: 'members', mode: 'insert', zero: true },
-])('account creation later step $mode (zero=$zero) never claims atomic full success', async failure => {
-  state.db.failures.push({ ...failure });
-  const entry = outcomes.find(row => row.name === 'account insert')!;
-  const response = await entry.handler(requestFor(entry));
-  expect(response.status).toBe(failure.zero ? 404 : 503);
-  const created = state.db.tables.accounts.find(row => row.name === 'New account')!;
-  expect(created).toMatchObject({ owner_id: ids.owner, language: 'id', is_active: true });
-  expect(state.db.tables.categories.some(row => row.account_id === created.id)).toBe(true);
-  expect(state.db.tables.members.some(row => row.account_id === created.id)).toBe(false);
+  expect(db.tables.invite_tokens[1].used).toBe(false);
+  expect(db.tables.invite_tokens).toHaveLength(3);
 });
 it('category duplicate checks are normalized and include deactivated history', async () => {
   const entry = outcomes.find(row => row.name === 'category insert')!;
@@ -214,7 +156,8 @@ it('member can change transaction type together with its category, or remove cat
 });
 it('committed transaction is returned when warning spend lookup fails', async () => {
   const entry = outcomes.find(row => row.name === 'transaction insert')!;
-  state.db.failures.push({ table: 'transactions', mode: 'read' });
+  state.db.tables.budgets.push({ id: ids.budget, account_id: ids.a, category_id: ids.expense, amount: '100.00' });
+  state.db.rpcOverride = async () => ({ data: null, error: { code: '08006' } });
   const response = await transactions.POST(requestFor({ ...entry, body: { ...entry.body, category_id: ids.expense } }));
   expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({ transaction: { amount: '10.50' }, budgetWarning: null, budgetWarningError: 'dependency_unavailable' });

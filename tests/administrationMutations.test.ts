@@ -41,13 +41,11 @@ it('budget delete failure is not success',async()=>{
   expect((await budgetDelete(new Request(`https://app.example/api/budgets?id=${ids.budget}`,{method:'DELETE'}))).status).toBe(503);
   expect(db.tables.budgets).toHaveLength(1);
 });
-it('account creation failure after insertion is not a full success',async()=>{
-  const db=resetSecurityState(ids.owner); db.failures.push({table:'seed_categories',mode:'read'});
+it('account creation rejects requests without an idempotency key before any write',async()=>{
+  const db=resetSecurityState(ids.owner); const before=structuredClone(db.tables);
   const response=await createAccount(json('/api/accounts','POST',{name:'New fixture',type:'personal'}));
-  expect(response.status).toBe(503);
-  const account=db.tables.accounts.find(row=>row.name==='New fixture')!;
-  expect(account.owner_id).toBe(ids.owner);
-  expect(db.tables.members.some(row=>row.account_id===account.id)).toBe(false);
+  expect(response.status).toBe(400);
+  expect(db.tables).toEqual(before);
 });
 it.each([{owner_id:ids.outsider},{wa_chat_id:'foreign-chat'},{type:'invalid'}])('account update rejects protected/invalid fields %j',async(extra)=>{
   const db=resetSecurityState(ids.owner); const before={...db.tables.accounts[0]};

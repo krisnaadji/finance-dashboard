@@ -1,7 +1,8 @@
 import { businessDate, currentMonthRange } from './business-date';
+import { formatMoney } from './money';
 
-export function formatIDR(amount: number): string {
-  return 'Rp' + amount.toLocaleString('id-ID');
+export function formatIDR(amount: string | number): string {
+  return 'Rp' + (typeof amount === 'string' ? formatMoney(amount) : amount.toLocaleString('id-ID'));
 }
 
 export function formatDate(dateStr: string, locale = 'id-ID'): string {

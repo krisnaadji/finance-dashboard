@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { parseAmount } from '@/lib/financial-validation';
 import { formatIDR, today } from '@/lib/utils';
 import { GlassButton } from '@/components/ui/GlassButton';
 
@@ -14,7 +15,7 @@ interface Transaction {
   id: string;
   date: string;
   description: string;
-  amount: number;
+  amount: string;
   type: string;
   categories: { name: string } | null;
   recorded_by_name?: string;
@@ -24,8 +25,8 @@ interface Transaction {
 
 interface BudgetWarning {
   category_name: string;
-  spent: number;
-  limit: number;
+  spent: string;
+  limit: string;
   pct: number;
   over: boolean;
 }
@@ -100,8 +101,8 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    const amt = Number(amount);
-    if (!amt || isNaN(amt) || amt <= 0) {
+    const amt = parseAmount(amount);
+    if (amt === null) {
       setError(t('amountInvalid'));
       return;
     }

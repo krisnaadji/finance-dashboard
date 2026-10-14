@@ -13,30 +13,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     const { token } = await params;
     if (!token || token.length > 256) return apiError(400, 'invalid_request');
     const db = createAdminClient();
-    const invite = await db.from('invite_tokens').select('id,account_id,accounts(id,name,is_active)')
-      .eq('token', token).eq('used', false).gt('expires_at', new Date().toISOString()).maybeSingle();
-    if (invite.error) return apiError(503, 'dependency_unavailable');
-    if (!invite.data || !isUuid(invite.data.account_id)) return apiError(400, 'invalid_request');
-    const account: unknown = invite.data.accounts;
-    if (!isRecord(account) || account.is_active !== true || typeof account.name !== 'string')
-      return apiError(403, 'forbidden');
-    const member = await db.from('members').select('id')
-      .eq('account_id', invite.data.account_id).eq('user_id', auth.user.id).maybeSingle();
-    if (member.error) return apiError(503, 'dependency_unavailable');
-    if (!member.data) {
-      const inserted = await db.from('members').insert({
-        account_id: invite.data.account_id, user_id: auth.user.id, role: 'member',
-        display_name: typeof auth.user.user_metadata.full_name === 'string'
-          ? auth.user.user_metadata.full_name : auth.user.email ?? null,
-      }).select('id').single();
-      if (inserted.error) return apiError(503, 'dependency_unavailable');
-      if (!inserted.data) return apiError(404, 'not_found');
-    }
-    const consumed = await db.from('invite_tokens').update({ used: true })
-      .eq('id', invite.data.id).eq('used', false).gt('expires_at', new Date().toISOString()).select('id').maybeSingle();
-    if (consumed.error) return apiError(503, 'dependency_unavailable');
-    if (!consumed.data) return apiError(409, 'conflict');
-    return NextResponse.json({ accountId: invite.data.account_id, accountName: account.name });
+    const metadataName = isRecord(auth.user.user_metadata) && typeof auth.user.user_metadata.full_name === 'string'
+      ? auth.user.user_metadata.full_name : null;
+    const result = await db.rpc('redeem_finance_invite', {
+      p_user_id: auth.user.id,
+      p_token: token,
+      p_display_name: metadataName ?? auth.user.email ?? null,
+    });
+    if (result.error) return apiError(503, 'dependency_unavailable');
+    if (!isRecord(result.data)) return apiError(503, 'dependency_unavailable');
+    if (result.data.code === 'invalid' || result.data.code === 'expired')
+      return apiError(400, 'invalid_request');
+    if (result.data.code === 'forbidden') return apiError(403, 'forbidden');
+    if (result.data.code === 'conflict') return apiError(409, 'conflict');
+    if (result.data.code !== 'accepted' || !isUuid(result.data.accountId) ||
+        typeof result.data.accountName !== 'string')
+      return apiError(503, 'dependency_unavailable');
+    return NextResponse.json({ accountId: result.data.accountId, accountName: result.data.accountName });
   } catch {
     return apiError(500, 'internal_error');
   }

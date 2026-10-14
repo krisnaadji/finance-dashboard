@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useAccountId, useAccountRole } from '@/components/AccountSwitcher';
+import { parseAmount } from '@/lib/financial-validation';
+import { budgetPercent, compareMoney } from '@/lib/money';
 import { formatIDR, startOfMonth, today } from '@/lib/utils';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassButton } from '@/components/ui/GlassButton';
@@ -17,12 +19,12 @@ interface Category {
 interface Budget {
   id: string;
   category_id: string;
-  amount: number;
+  amount: string;
 }
 
 interface Spending {
   category_id: string;
-  spent: number;
+  spent: string;
 }
 
 export default function CategoriesPage() {
@@ -48,18 +50,15 @@ export default function CategoriesPage() {
       fetch('/api/categories?account_id=' + accountId).then((r) => r.json()),
       fetch('/api/budgets?account_id=' + accountId).then((r) => r.json()),
       fetch(
-        `/api/transactions?account_id=${accountId}&from=${startOfMonth()}&to=${today()}&page_size=99999`,
+        `/api/summary?account_id=${accountId}&from=${startOfMonth()}&to=${today()}`,
       ).then((r) => r.json()),
-    ]).then(([catsData, budgetsData, txnsData]) => {
+    ]).then(([catsData, budgetsData, summaryData]) => {
       if (Array.isArray(catsData)) setCats(catsData);
       if (Array.isArray(budgetsData)) setBudgets(budgetsData);
-      const txns = txnsData.data ?? [];
-      const spendMap: Record<string, number> = {};
-      for (const txn of txns.filter((t: any) => t.type === 'expense')) {
-        if (txn.category_id)
-          spendMap[txn.category_id] = (spendMap[txn.category_id] ?? 0) + Number(txn.amount);
-      }
-      setSpending(Object.entries(spendMap).map(([category_id, spent]) => ({ category_id, spent })));
+      const spendMap = summaryData.spendingByCategoryId ?? {};
+      setSpending(Object.entries(spendMap)
+        .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+        .map(([category_id, spent]) => ({ category_id, spent })));
     });
   }, [accountId]);
 
@@ -93,10 +92,11 @@ export default function CategoriesPage() {
     }
 
     // Save or remove budget
-    const budgetAmount = parseFloat(editBudget);
+    const budgetAmount = parseAmount(editBudget);
+    const clearsBudget = editBudget.trim() === '' || /^0+(?:\.0{1,2})?$/.test(editBudget.trim());
     const existingBudget = budgets.find((b) => b.category_id === id);
 
-    if (!isNaN(budgetAmount) && budgetAmount > 0) {
+    if (budgetAmount !== null) {
       const bRes = await fetch('/api/budgets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -109,7 +109,7 @@ export default function CategoriesPage() {
           existingBudget ? prev.map((b) => (b.category_id === id ? bData : b)) : [...prev, bData],
         );
       }
-    } else if (existingBudget && (isNaN(budgetAmount) || budgetAmount === 0)) {
+    } else if (existingBudget && clearsBudget) {
       await fetch('/api/budgets?id=' + existingBudget.id, {
         method: 'DELETE',
         credentials: 'include',
@@ -137,10 +137,10 @@ export default function CategoriesPage() {
 
   function getBudgetInfo(catId: string) {
     const budget = budgets.find((b) => b.category_id === catId);
-    const spent = spending.find((s) => s.category_id === catId)?.spent ?? 0;
+    const spent = spending.find((s) => s.category_id === catId)?.spent ?? '0.00';
     if (!budget) return null;
-    const pct = Math.min((spent / budget.amount) * 100, 100);
-    const over = spent > budget.amount;
+    const pct = Math.min(budgetPercent(spent, budget.amount), 100);
+    const over = compareMoney(spent, budget.amount) > 0;
     return { budget, spent, pct, over };
   }
 
@@ -240,7 +240,7 @@ export default function CategoriesPage() {
                   {budgetInfo.over && ' ⚠️'}
                 </span>
                 <span className={`text-[10px] ${budgetInfo.over ? 'text-red-400' : 'text-white/30'}`}>
-                  {Math.round((budgetInfo.spent / budgetInfo.budget.amount) * 100)}%
+                  {Math.round(budgetInfo.pct)}%
                 </span>
               </div>
               <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>

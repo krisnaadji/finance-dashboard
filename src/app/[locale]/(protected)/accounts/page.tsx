@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { LinkCodeModal } from '@/components/LinkCodeModal';
 import { useAccountRole, refreshAccountSwitcher } from '@/components/AccountSwitcher';
@@ -31,6 +31,8 @@ export default function AccountsPage() {
   const [name, setName] = useState('');
   const [type, setType] = useState<'personal' | 'group'>('personal');
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const createOperation = useRef<{ payload: string; id: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editType, setEditType] = useState<'personal' | 'group'>('personal');
@@ -77,20 +79,36 @@ export default function AccountsPage() {
   }
 
   async function createAccount() {
-    if (!name.trim()) return;
+    const accountName = name.trim();
+    if (!accountName) return;
+    const payload = JSON.stringify({ name: accountName, type });
+    if (!createOperation.current || createOperation.current.payload !== payload) {
+      createOperation.current = { payload, id: crypto.randomUUID() };
+    }
     setCreating(true);
-    const res = await fetch('/api/accounts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name.trim(), type }),
-    });
-    const data = await res.json();
-    const newAcc = { ...data, role: 'owner' };
-    setAccounts((prev) => [...prev, newAcc]);
-    setName('');
-    setCreating(false);
-    refreshAccountSwitcher();
-    if (newAcc.type === 'group') loadMembers(newAcc.id);
+    setCreateError('');
+    try {
+      const res = await fetch('/api/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: accountName, type, operation_id: createOperation.current.id }),
+      });
+      const data = await res.json();
+      if (!res.ok || typeof data.id !== 'string') {
+        setCreateError(t('createFailed'));
+        return;
+      }
+      const newAcc = { ...data, role: 'owner' };
+      setAccounts((prev) => [...prev, newAcc]);
+      setName('');
+      createOperation.current = null;
+      refreshAccountSwitcher();
+      if (newAcc.type === 'group') loadMembers(newAcc.id);
+    } catch {
+      setCreateError(t('createFailed'));
+    } finally {
+      setCreating(false);
+    }
   }
 
   async function saveEdit(id: string) {
@@ -179,13 +197,13 @@ export default function AccountsPage() {
         <div className="flex flex-col sm:flex-row gap-3">
           <input
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => { setName(e.target.value); createOperation.current = null; setCreateError(''); }}
             placeholder={t('name')}
             className="flex-1 rounded-lg border border-white/[0.1] bg-white/[0.06] text-white placeholder-white/30 px-3 py-2 text-sm"
           />
           <select
             value={type}
-            onChange={(e) => setType(e.target.value as 'personal' | 'group')}
+            onChange={(e) => { setType(e.target.value as 'personal' | 'group'); createOperation.current = null; setCreateError(''); }}
             className="rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-2 text-sm"
           >
             <option value="personal" className="bg-[#1a1a1f]">
@@ -203,6 +221,7 @@ export default function AccountsPage() {
             {creating ? '...' : t('create')}
           </button>
         </div>
+        {createError && <p role="alert" className="mt-3 text-sm text-red-300">{createError}</p>}
       </div>
 
       {/* Accounts List */}

@@ -19,10 +19,12 @@ export async function GET(req: Request) {
   if (!access.ok) return access.response;
 
   const admin = createAdminClient();
-  const { data, error } = await admin.from('budgets').select('*').eq('account_id', accountId);
+  const { data, error } = await admin.from('budgets').select('*,amount_text:amount::text')
+    .eq('account_id', accountId);
   if (error) return apiError(503, 'dependency_unavailable');
+  if ((data ?? []).some(row => typeof row.amount_text !== 'string')) return apiError(503, 'dependency_unavailable');
 
-  return NextResponse.json(data ?? []);
+  return NextResponse.json((data ?? []).map(({ amount_text, ...row }) => ({ ...row, amount: amount_text })));
   } catch {
     return apiError(500, 'internal_error');
   }
@@ -47,10 +49,13 @@ export async function POST(req: Request) {
     if (categoryError) return categoryError;
     const saved = await db.from('budgets').upsert({
       account_id: body.account_id, category_id: body.category_id, amount, updated_at: new Date().toISOString(),
-    }, { onConflict: 'account_id,category_id' }).select('*').single();
+    }, { onConflict: 'account_id,category_id' })
+      .select('*,amount_text:amount::text').single();
     if (saved.error) return apiError(503, 'dependency_unavailable');
     if (!saved.data) return apiError(404, 'not_found');
-    return NextResponse.json(saved.data);
+    if (typeof saved.data.amount_text !== 'string') return apiError(503, 'dependency_unavailable');
+    const { amount_text, ...row } = saved.data;
+    return NextResponse.json({ ...row, amount: amount_text });
   } catch {
     return apiError(500, 'internal_error');
   }

@@ -29,7 +29,11 @@
     "confirmDelete": "Delete this transaction?",
     "filterFrom": "From",
     "filterTo": "To",
-    "add": "Add"
+    "add": "Add",
+    "exportCsv": "Export CSV",
+    "exporting": "Preparing CSV...",
+    "exportFailed": "Could not export transactions. Try again with the current filters.",
+    "exportLimitExceeded": "Export is too large. Narrow the date range or filters and try again."
   },
   "addTransaction": {
     "title": "Add Transaction",
@@ -61,7 +65,8 @@
     "linkBot": "Link WhatsApp",
     "generateCode": "Generate Code",
     "codeInstruction": "Send this in WhatsApp:",
-    "codeExpiry": "Code valid for 15 minutes"
+    "codeExpiry": "Code valid for 15 minutes",
+    "createFailed": "Could not create the account. Try again."
   },
   "categories": {
     "title": "Categories",

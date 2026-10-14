@@ -19,13 +19,21 @@ it.each(entries)('%s denies anonymous and foreign reads but permits members', as
   const request = new Request(`https://app.example${path}${path.includes('?')?'&':'?'}account_id=${ids.a}`);
   expect((await handler(request)).status).toBe(401);
   resetSecurityState(ids.outsider); expect((await handler(request)).status).toBe(403);
-  const db=resetSecurityState(ids.member);
+  const db = resetSecurityState(ids.member);
   db.tables.transactions.push({id:db.id(),account_id:ids.b,amount:'9999999.00',type:'expense',date:'2026-10-12',description:'Foreign financial record',category_id:ids.foreign});
+  if (_name === 'summary' || _name === 'trend') db.rpcOverride = async () => ({ data: {
+    income: '0.00', expense: '35.50', net: '-35.50',
+    categories: [{ id: ids.expense, name: 'Food', amount: '35.50' }],
+    spendingByCategoryId: { [ids.expense]: '35.50' },
+    byMonth: { '2026-10': { income: '0.00', expense: '35.50' } },
+    topExpenses: [{ id: ids.transaction, date: '2026-10-12', description: 'Local expense', amount: '35.50', category: 'Food' }],
+    topIncomes: [],
+  }, error: null });
   const response=await handler(request); expect(response.status).toBe(200);
   const body=await response.json(); const serialized=JSON.stringify(body);
   expect(serialized).not.toContain(ids.foreign); expect(serialized).not.toContain('Foreign financial record');
-  if(_name==='summary') expect(body.expense).toBe(35.5);
-  if(_name==='trend') expect(body['2026-10'].expense).toBe(35.5);
+  if(_name==='summary') expect(body.expense).toBe('35.50');
+  if(_name==='trend') expect(body['2026-10'].expense).toBe('35.50');
 });
 it('member list and salary resolver have the same account boundary', async () => {
   const request = new Request('https://app.example/api/members');
@@ -37,7 +45,8 @@ it('member list and salary resolver have the same account boundary', async () =>
   expect((await period(periodRequest)).status).toBe(200);
 });
 it('summary outage cannot masquerade as zero income', async () => {
-  const db = resetSecurityState(ids.member); db.failures.push({ table: 'transactions', mode: 'read' });
+  const db = resetSecurityState(ids.member);
+  db.rpcOverride = async () => ({ data: null, error: { code: '08006' } });
   const response = await summary(new Request(`https://app.example/api/summary?account_id=${ids.a}&from=2026-10-12&to=2026-10-12`));
   expect(response.status).toBe(503); expect(await response.json()).toMatchObject({ code: 'dependency_unavailable' });
 });

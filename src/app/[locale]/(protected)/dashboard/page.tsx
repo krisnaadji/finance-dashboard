@@ -14,12 +14,14 @@ import { formatIDR, formatDate } from '@/lib/utils';
 import { currentMonthRange } from '@/lib/reporting-period';
 import { GlowBadge } from '@/components/ui/GlowBadge';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { compareMoney, budgetPercent, subtractMoney } from '@/lib/money';
+import type { Summary } from '@/lib/reporting-contract';
 import { GlassButton } from '@/components/ui/GlassButton';
 
 interface TopTransaction {
   id: string;
   description: string;
-  amount: number;
+  amount: string;
   date: string;
   category: string;
 }
@@ -27,24 +29,13 @@ interface TopTransaction {
 interface Budget {
   id: string;
   category_id: string;
-  amount: number;
+  amount: string;
 }
 
 interface Category {
   id: string;
   name: string;
   type: string;
-}
-
-interface Summary {
-  income: number;
-  expense: number;
-  net: number;
-  byCategory: Record<string, number>;
-  spendingByCategoryId: Record<string, number>;
-  byMonth: Record<string, { income: number; expense: number }>;
-  topExpenses: TopTransaction[];
-  topIncomes: TopTransaction[];
 }
 
 export default function DashboardPage() {
@@ -54,13 +45,11 @@ export default function DashboardPage() {
   const from = period.from;
   const to = period.to;
   const [summary, setSummary] = useState<Summary | null>(null);
-  const [budgetSpending, setBudgetSpending] = useState<Record<string, number>>({});
+  const [budgetSpending, setBudgetSpending] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [trend, setTrend] = useState<Record<string, { income: number; expense: number }> | null>(
-    null,
-  );
+  const [trend, setTrend] = useState<Record<string, { income: string; expense: string }> | null>(null);
   const [showTrend, setShowTrend] = useState(false);
   const [loadingTrend, setLoadingTrend] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -121,21 +110,21 @@ export default function DashboardPage() {
   }, [accountId, from, to, period.valid, reloadTick]);
 
   const topEntry = summary
-    ? Object.entries(summary.byCategory).sort((a, b) => b[1] - a[1])[0]
+    ? summary.categories.reduce<typeof summary.categories[number] | null>(
+        (best, category) => !best || compareMoney(category.amount, best.amount) > 0 ? category : best, null)
     : null;
 
-  // Build budget overview — only expense categories with a budget set
   const budgetOverview = budgets
     .map((b) => {
       const cat = categories.find((c) => c.id === b.category_id);
       if (!cat || cat.type !== 'expense') return null;
-      const spent = budgetSpending[b.category_id] ?? 0;
-      const pct = (spent / b.amount) * 100;
-      const over = spent > b.amount;
+      const spent = budgetSpending[b.category_id] ?? '0.00';
+      const pct = budgetPercent(spent, b.amount);
+      const over = compareMoney(spent, b.amount) > 0;
       return { id: b.id, name: cat.name, spent, limit: b.amount, pct, over };
     })
     .filter(Boolean)
-    .sort((a, b) => b!.pct - a!.pct); // sort by % used descending
+    .sort((a, b) => b!.pct - a!.pct);
 
   const now = new Date().toLocaleDateString('id-ID', {
     weekday: 'long',
@@ -188,14 +177,14 @@ export default function DashboardPage() {
             income={summary.income}
             expense={summary.expense}
             net={summary.net}
-            topExpenseCategory={topEntry?.[0]}
-            topExpenseAmount={topEntry?.[1]}
+            topExpenseCategory={topEntry?.name}
+            topExpenseAmount={topEntry?.amount}
           />
 
           {/* Charts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
             <IncomeExpenseChart byMonth={summary.byMonth} />
-            <CategoryPieChart byCategory={summary.byCategory} />
+            <CategoryPieChart categories={summary.categories} />
           </div>
 
           {/* Budget Overview */}
@@ -255,7 +244,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="flex justify-between mt-0.5">
                           <span className="text-[10px]" style={{ color: 'rgba(241,245,249,0.2)' }}>
-                            {formatIDR(Math.max(b.limit - b.spent, 0))} remaining
+                            {formatIDR(compareMoney(b.limit, b.spent) > 0 ? subtractMoney(b.limit, b.spent) : '0.00')} remaining
                           </span>
                           <span
                             className="text-[10px]"
@@ -325,7 +314,7 @@ export default function DashboardPage() {
         </>
       )}
 
-      {!loading && summary && summary.income === 0 && summary.expense === 0 && (
+      {!loading && summary && summary.income === '0.00' && summary.expense === '0.00' && (
         <p className="text-center text-white/30 mt-12 text-sm">No transactions this period</p>
       )}
 

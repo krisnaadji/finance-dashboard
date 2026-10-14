@@ -4,11 +4,11 @@ import { formatIDR } from '@/lib/utils';
 import { GlassCard } from '@/components/ui/GlassCard';
 
 interface Props {
-  income: number;
-  expense: number;
-  net: number;
+  income: string;
+  expense: string;
+  net: string;
   topExpenseCategory?: string;
-  topExpenseAmount?: number;
+  topExpenseAmount?: string;
 }
 
 export function SummaryCards({ income, expense, net, topExpenseCategory, topExpenseAmount }: Props) {

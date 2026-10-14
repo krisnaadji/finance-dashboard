@@ -46,10 +46,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     for (const field of transactionSnapshotFields) {
       update = old[field] === null ? update.is(field, null) : update.eq(field, old[field]);
     }
-    const updated = await update.select('*,categories(name)').maybeSingle();
+    const updated = await update.select('*,amount_text:amount::text,categories(name)').maybeSingle();
     if (updated.error) return apiError(503, 'dependency_unavailable');
     if (!updated.data) return apiError(409, 'conflict');
-    return NextResponse.json(updated.data);
+    if (typeof updated.data.amount_text !== 'string') return apiError(503, 'dependency_unavailable');
+    const { amount_text, ...row } = updated.data;
+    return NextResponse.json({ ...row, amount: amount_text });
   } catch {
     return apiError(500, 'internal_error');
   }

@@ -3,18 +3,21 @@ import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recha
 import { useTranslations } from 'next-intl';
 import { formatIDR } from '@/lib/utils';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { compareMoney } from '@/lib/money';
 
 const COLORS = ['#10b981', '#0ea5e9', '#a78bfa', '#fbbf24', '#f87171', '#06b6d4', '#f97316', '#84cc16'];
 
+interface CategoryTotal { id: string | null; name: string; amount: string }
+
 interface Props {
-  byCategory: Record<string, number>;
+  categories: CategoryTotal[];
 }
 
-export function CategoryPieChart({ byCategory }: Props) {
+export function CategoryPieChart({ categories }: Props) {
   const t = useTranslations('transactions');
-  const data = Object.entries(byCategory)
-    .sort((a, b) => b[1] - a[1])
-    .map(([name, value]) => ({ name, value }));
+  const data = [...categories]
+    .sort((a, b) => compareMoney(b.amount, a.amount))
+    .map((category) => ({ ...category, value: Number(category.amount) }));
 
   if (!data.length) return null;
 
@@ -35,12 +38,12 @@ export function CategoryPieChart({ byCategory }: Props) {
             label={false}
             labelLine={false}
           >
-            {data.map((_, i) => (
-              <Cell key={i} fill={COLORS[i % COLORS.length]} />
+            {data.map((category, i) => (
+              <Cell key={category.id ?? 'uncategorized'} fill={COLORS[i % COLORS.length]} />
             ))}
           </Pie>
           <Tooltip
-            formatter={(value, name) => [formatIDR(Number(value)), name]}
+            formatter={(value, name, item) => [formatIDR(item.payload.amount), name]}
             contentStyle={{
               background: 'rgba(8,12,16,0.95)',
               border: '1px solid rgba(255,255,255,0.12)',
