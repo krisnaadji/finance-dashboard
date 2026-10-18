@@ -24,13 +24,16 @@ export function CategorySelector({ categories, type, value, onChange, locale, di
   };
   return <label htmlFor={id} className="block min-w-0 text-xs text-white/40">
     <span className="block mb-1">{t('category')}</span>
-    <select id={id} value={value ?? ''} disabled={disabled} onChange={e => onChange(e.target.value || null)} className="w-full min-w-0 rounded-lg border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-white focus-visible:outline-emerald-400">
-      <option value="">{t('none')}</option>
-      {retained && <option value={retained.id}>{label(retained)} ({t('inactive')})</option>}
-      {options.filter(c => !c.parent_id).map(root => <optgroup key={root.id} label={categoryLabel(root, locale)}>
-        <option value={root.id}>{categoryLabel(root, locale)}</option>
-        {options.filter(c => c.parent_id === root.id).map(child => <option key={child.id} value={child.id}>{label(child)}</option>)}
-      </optgroup>)}
-    </select>
+    <span className="relative block">
+      <select id={id} value={value ?? ''} disabled={disabled} onChange={e => onChange(e.target.value || null)} className="w-full min-w-0 appearance-none rounded-lg border border-white/[0.1] bg-white/[0.06] pl-3 pr-10 py-2 text-sm text-white [color-scheme:dark] focus-visible:outline-emerald-400">
+        <option value="" className="bg-[#1a1a1f] text-white">{t('none')}</option>
+        {retained && <option value={retained.id} className="bg-[#1a1a1f] text-white">{label(retained)} ({t('inactive')})</option>}
+        {options.filter(c => !c.parent_id).map(root => <optgroup key={root.id} label={categoryLabel(root, locale)} className="bg-[#1a1a1f] text-white">
+          <option value={root.id} className="bg-[#1a1a1f] text-white">{categoryLabel(root, locale)}</option>
+          {options.filter(c => c.parent_id === root.id).map(child => <option key={child.id} value={child.id} className="bg-[#1a1a1f] text-white">{label(child)}</option>)}
+        </optgroup>)}
+      </select>
+      <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40"><path d="m5 7.5 5 5 5-5" /></svg>
+    </span>
   </label>;
 }
