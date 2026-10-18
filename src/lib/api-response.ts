@@ -4,6 +4,8 @@ const messages: Record<string, string> = {
   invalid_request: 'Invalid request', unauthorized: 'Unauthorized', forbidden: 'Forbidden',
   not_found: 'Not found', conflict: 'Operation conflicts with current state',
   internal_error: 'Operation failed', dependency_unavailable: 'Service temporarily unavailable',
+  rate_limited: 'Too many translation requests', translation_timeout: 'Translation timed out',
+  translation_unavailable: 'Translation temporarily unavailable',
 };
 
 export function apiError(status: number, code: string): NextResponse {

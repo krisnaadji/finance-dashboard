@@ -1,9 +1,10 @@
 'use client';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { usePathname } from 'next/navigation';
 
 export function LanguageSwitcher() {
   const locale = useLocale();
+  const t = useTranslations('language');
   const pathname = usePathname();
 
   function switchLocale(newLocale: string) {
@@ -21,24 +22,25 @@ export function LanguageSwitcher() {
     const newPath = newLocale === 'id' ? base : '/en' + base;
 
     // 3. Hard navigate — ensures middleware runs and reads the new cookie
-    window.location.assign(newPath);
+    window.location.assign(newPath + window.location.search + window.location.hash);
   }
 
   return (
-    <div className="flex rounded-lg overflow-hidden border border-white/[0.08] bg-white/[0.04] w-full">
+    <div role="group" aria-label={t('label')} className="flex rounded-lg overflow-hidden border border-white/[0.08] bg-white/[0.04] w-full">
       {(['id', 'en'] as const).map((loc) => (
         <button
           key={loc}
           type="button"
+          aria-label={t(loc)}
+          aria-pressed={loc === locale}
           onClick={() => switchLocale(loc)}
           onTouchEnd={(e) => {
             e.preventDefault();
             switchLocale(loc);
           }}
-          className={`flex-1 py-2 md:py-1.5 text-sm md:text-xs font-medium
-            cursor-pointer select-none transition-all duration-150 ${
-              loc === locale ? 'bg-white/[0.12] text-white' : 'text-white/35 hover:text-white/60'
-            }`}
+          className={`min-h-11 flex-1 py-2 text-sm md:text-xs font-medium cursor-pointer select-none transition-all duration-150 focus-visible:outline-emerald-400 ${
+            loc === locale ? 'bg-white/[0.12] text-white' : 'text-white/70 hover:text-white'
+          }`}
         >
           {loc === 'id' ? 'ID' : 'EN'}
         </button>

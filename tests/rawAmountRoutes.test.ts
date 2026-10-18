@@ -52,9 +52,9 @@ it('orders table results by date, creation time, then transaction UUID', async (
   const createdAt = '2026-10-12T10:00:00.000Z';
   db.tables.transactions[0].created_at = createdAt;
   db.tables.transactions.push(
-    { id: '30000000-0000-4000-8000-000000000002', account_id: ids.a, amount: '2.00', type: 'expense', date: '2026-10-12', description: 'later creation', created_at: '2026-10-12T10:01:00.000Z' },
-    { id: '30000000-0000-4000-8000-000000000003', account_id: ids.a, amount: '3.00', type: 'expense', date: '2026-10-12', description: 'higher ID', created_at: createdAt },
-    { id: '30000000-0000-4000-8000-000000000004', account_id: ids.a, amount: '4.00', type: 'expense', date: '2026-10-11', description: 'older date', created_at: '2026-10-12T10:02:00.000Z' },
+    { id: '30000000-0000-4000-8000-000000000002', account_id: ids.a, category_id: null, amount: '2.00', type: 'expense', date: '2026-10-12', description: 'later creation', created_at: '2026-10-12T10:01:00.000Z' },
+    { id: '30000000-0000-4000-8000-000000000003', account_id: ids.a, category_id: null, amount: '3.00', type: 'expense', date: '2026-10-12', description: 'higher ID', created_at: createdAt },
+    { id: '30000000-0000-4000-8000-000000000004', account_id: ids.a, category_id: null, amount: '4.00', type: 'expense', date: '2026-10-11', description: 'older date', created_at: '2026-10-12T10:02:00.000Z' },
   );
   const response = await listTransactions(new Request(`https://app.example/api/transactions?account_id=${ids.a}&page_size=20`));
   expect(response.status).toBe(200);

@@ -1,3 +1,4 @@
+import { cents, decimal } from '../../src/lib/money';
 export type Row = Record<string, unknown>;
 export type Mode = 'read' | 'insert' | 'update' | 'delete' | 'upsert';
 export type Result = { data: Row | Row[] | null; error: { code: string } | null; count: number | null };
@@ -30,15 +31,42 @@ export class DashboardDb {
     if (name === 'seed_categories') {
       const failure = this.failures.findIndex(f => f.table === 'seed_categories');
       if (failure >= 0) { this.failures.splice(failure, 1); return { data: null, error: { code: '08006' } }; }
-      this.tables.categories.push({ id: this.id(), account_id: args.p_account_id, name: 'Fixture expense', type: 'expense', is_active: true });
+      this.tables.categories.push({ id: this.id(), account_id: args.p_account_id, code:'expense.other',name_id:'Lainnya',name_en:'Other',parent_id:null,sort_order:0,is_custom:false,type:'expense',is_active:true });
       return { data: null, error: null };
     }
     if (this.rpcOverride) return this.rpcOverride(name, args);
     if (name === 'finance_summary') return { data: {
       income: '0.00', expense: '0.00', net: '0.00', categories: [],
-      spendingByCategoryId: {}, byMonth: {}, topExpenses: [], topIncomes: [],
+      spendingByCategoryId: {}, categoryDetails:[], byMonth: {}, topExpenses: [], topIncomes: [],
     }, error: null };
     if (name === 'finance_budget_spending') return { data: { spendingByCategoryId: {} }, error: null };
+    if (name === 'finance_transaction_view') {
+      const failure = this.failures.findIndex(f=>f.table==='transactions' && f.mode==='read');
+      if(failure>=0) {
+        const f=this.failures.splice(failure,1)[0];
+        if(f.throws) throw new Error('Private query detail');
+        return {data:null,error:{code:f.code??'08006'}};
+      }
+      const filters=args.p_filters as Row;
+      const category=(id:unknown)=>this.tables.categories.find(c=>c.id===id && c.account_id===args.p_account_id);
+      const rows=this.tables.transactions.filter(t=>{
+        const c=category(t.category_id);
+        return t.account_id===args.p_account_id && (!filters.from || String(t.date)>=String(filters.from)) &&
+          (!filters.to || String(t.date)<=String(filters.to)) && (!filters.type || t.type===filters.type) &&
+          (!filters.search || String(t.description).toLowerCase().includes(String(filters.search).toLowerCase())) &&
+          (!filters.categoryId || (filters.subcategoryId ? t.category_id===filters.subcategoryId :
+            t.category_id===filters.categoryId || (filters.categoryScope!=='direct' && c?.parent_id===filters.categoryId)));
+      }).sort((a,b)=>String(b.date).localeCompare(String(a.date)) || String(b.created_at??'').localeCompare(String(a.created_at??'')) || String(b.id).localeCompare(String(a.id)));
+      let income=0n,expense=0n;
+      for(const row of rows) {if(row.type==='income') income+=cents(String(row.amount));else expense+=cents(String(row.amount));}
+      const offset=(Number(args.p_page)-1)*Number(args.p_page_size);
+      return {data:{total:rows.length,summary:{income:decimal(income),expense:decimal(expense),net:decimal(income-expense)},
+        rows:rows.slice(offset,offset+Number(args.p_page_size)).map(row=>{
+          const c=category(row.category_id);
+          const safe=c?.type===row.type?c:null;
+          return {...row,categories:safe,parent:safe?.parent_id?category(safe.parent_id)??null:null};
+        })},error:null};
+    }
     if (name === 'replace_finance_link_code') return {
       data: { code: 'accepted', linkCode: { code: args.p_code, expiresAt: '2026-10-15T00:00:00.000Z' } }, error: null,
     };
@@ -114,8 +142,8 @@ class Query implements PromiseLike<Result> {
       const old = this.mode === 'upsert' ? rows.find(r => this.conflicts.every(k => r[k] === this.values[k])) : undefined;
       if (old) { Object.assign(old,this.values); selected = [old]; }
       else {
-        const defaults = this.table === 'accounts' || this.table === 'categories' ? { is_active: true }
-          : this.table === 'invite_tokens' ? {
+        const defaults = this.table === 'categories' ? {is_active:true,code:null,parent_id:null,name_id:null,name_en:null,sort_order:0,is_custom:true}
+          : this.table === 'accounts' ? {is_active:true} : this.table === 'invite_tokens' ? {
             token: this.db.id(), used: false, expires_at: new Date(Date.now() + 86400000).toISOString(),
           } : this.table === 'link_codes' ? { used: false } : {};
         const row = { id: this.db.id(), ...defaults, ...this.values }; rows.push(row); selected = [row];
@@ -160,10 +188,10 @@ export function seedDashboardDb() {
     { id: db.id(), account_id: ids.b, user_id: ids.outsider, display_name: 'Other', role: 'owner' },
   ];
   db.tables.categories = [
-    { id: ids.expense, account_id: ids.a, name: 'Food', type: 'expense', is_custom: true, is_active: true },
-    { id: ids.income, account_id: ids.a, name: 'Salary', type: 'income', is_custom: false, is_active: true },
-    { id: ids.inactive, account_id: ids.a, name: 'Old Food', type: 'expense', is_custom: true, is_active: false },
-    { id: ids.foreign, account_id: ids.b, name: 'Foreign', type: 'expense', is_custom: true, is_active: true },
+    { id: ids.expense, account_id: ids.a, code:null,name_id:'Makanan',name_en:'Food',parent_id:null,sort_order:0,type:'expense',is_custom:true,is_active:true },
+    { id: ids.income, account_id: ids.a, code:'salary',name_id:'Gaji',name_en:'Salary',parent_id:null,sort_order:0,type:'income',is_custom:false,is_active:true },
+    { id: ids.inactive, account_id: ids.a, code:null,name_id:'Makanan Lama',name_en:'Old Food',parent_id:null,sort_order:0,type:'expense',is_custom:true,is_active:false },
+    { id: ids.foreign, account_id: ids.b, code:null,name_id:'Asing',name_en:'Foreign',parent_id:null,sort_order:0,type:'expense',is_custom:true,is_active:true },
   ];
   db.tables.transactions = [{ id: ids.transaction, account_id: ids.a, category_id: ids.expense, amount: '35.50', type: 'expense', description: 'Lunch', date: '2026-10-12' }];
   db.tables.budgets = [{ id: ids.budget, account_id: ids.a, category_id: ids.expense, amount: '100.00' }];

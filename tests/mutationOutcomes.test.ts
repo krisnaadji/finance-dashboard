@@ -29,9 +29,9 @@ const outcomes: OutcomeCase[] = [
   { name: 'transaction update', path: '/api/transactions', method: 'PATCH', handler: request => transaction.PATCH(request, transactionContext), body: { amount: '40.25' }, table: 'transactions', mode: 'update' },
   { name: 'transaction delete', path: '/api/transactions', method: 'DELETE', handler: request => transaction.DELETE(request, transactionContext), table: 'transactions', mode: 'delete' },
   { name: 'category insert', path: '/api/categories', method: 'POST', handler: categories.POST,
-    body: { account_id: ids.a, name: 'Travel', type: 'expense' }, table: 'categories', mode: 'insert' },
+    body: { account_id: ids.a, name_en: 'Travel', type: 'expense' }, table: 'categories', mode: 'insert' },
   { name: 'category update', path: '/api/categories', method: 'PATCH', handler: categories.PATCH,
-    body: { id: ids.expense, name: 'Dining' }, table: 'categories', mode: 'update' },
+    body: { id: ids.expense, name_en: 'Dining' }, table: 'categories', mode: 'update' },
   { name: 'category deactivate', path: `/api/categories?id=${ids.expense}`, method: 'DELETE', handler: categories.DELETE, table: 'categories', mode: 'update' },
   { name: 'budget upsert', path: '/api/budgets', method: 'POST', handler: budgets.POST,
     body: { account_id: ids.a, category_id: ids.expense, amount: '120.50' }, table: 'budgets', mode: 'upsert' },
@@ -104,18 +104,15 @@ it('invite issuance retires only the target account and preserves the response',
   expect(db.tables.invite_tokens[1].used).toBe(false);
   expect(db.tables.invite_tokens).toHaveLength(3);
 });
-it('category duplicate checks are normalized and include deactivated history', async () => {
+it('category constraint errors become conflicts without changing rows', async () => {
   const entry = outcomes.find(row => row.name === 'category insert')!;
-  for (const name of [' food ', 'OLD FOOD']) {
-    expect((await categories.POST(requestFor({ ...entry, body: { ...entry.body, name } }))).status).toBe(409);
-  }
-  const edit = outcomes.find(row => row.name === 'category update')!;
-  expect((await categories.PATCH(requestFor({ ...edit, body: { id: ids.expense, name: ' salary ' } }))).status).toBe(409);
-  state.db.failures.push({ table: 'categories', mode: 'read' });
-  expect((await categories.POST(requestFor(entry))).status).toBe(503);
   state.db.failures.push({ table: 'categories', mode: 'insert', code: '23505' });
   expect((await categories.POST(requestFor(entry))).status).toBe(409);
+  const edit = outcomes.find(row => row.name === 'category update')!;
+  state.db.failures.push({ table: 'categories', mode: 'update', code: '23505' });
+  expect((await categories.PATCH(requestFor(edit))).status).toBe(409);
   expect(state.db.tables.categories).toHaveLength(4);
+  expect(state.db.tables.categories[0].name_en).toBe('Food');
 });
 it('category deactivation preserves transaction and budget joins/history', async () => {
   const beforeTransactions = structuredClone(state.db.tables.transactions);
@@ -125,7 +122,7 @@ it('category deactivation preserves transaction and budget joins/history', async
   expect(state.db.tables.transactions).toEqual(beforeTransactions);
   expect(state.db.tables.budgets).toEqual(beforeBudgets);
   const response = await transactions.GET(new Request(`https://app.example/api/transactions?account_id=${ids.a}`));
-  expect((await response.json()).data[0].categories.name).toBe('Food');
+  expect((await response.json()).data[0].categories.name_en).toBe('Food');
 });
 it.each([0, -1, true, null, '', '0.001', '10000000000000.00'])('invalid budget amount %s makes no write', async amount => {
   const entry = outcomes.find(row => row.name === 'budget upsert')!;
@@ -133,16 +130,16 @@ it.each([0, -1, true, null, '', '0.001', '10000000000000.00'])('invalid budget a
   expect((await budgets.POST(requestFor({ ...entry, body: { ...entry.body, amount } }))).status).toBe(400);
   expect(state.db.tables.budgets).toEqual(before);
 });
-it('merged transaction rejects legacy invalid amount and mismatched inactive category', async () => {
+it('merged transaction rejects invalid amount but preserves unchanged historical references', async () => {
   const entry = outcomes.find(row => row.name === 'transaction update')!;
   state.db.tables.transactions[0].amount = '0.001';
   expect((await transaction.PATCH(requestFor({ ...entry, body: { description: 'Corrected' } }), transactionContext)).status).toBe(400);
   state.db.tables.transactions[0].amount = '35.50';
   state.db.tables.transactions[0].category_id = ids.income;
-  expect((await transaction.PATCH(requestFor({ ...entry, body: { description: 'Corrected' } }), transactionContext)).status).toBe(400);
+  expect((await transaction.PATCH(requestFor({ ...entry, body: { description: 'Corrected' } }), transactionContext)).status).toBe(200);
   state.db.tables.transactions[0].category_id = ids.inactive;
   expect((await transaction.PATCH(requestFor({ ...entry, body: { amount: '50.00', date: '2026-10-11' } }), transactionContext)).status).toBe(200);
-  expect((await transaction.PATCH(requestFor({ ...entry, body: { type: 'expense' } }), transactionContext)).status).toBe(400);
+  expect((await transaction.PATCH(requestFor({ ...entry, body: { type: 'expense' } }), transactionContext)).status).toBe(200);
 });
 it('member can change transaction type together with its category, or remove category explicitly', async () => {
   resetSecurityState(ids.member);

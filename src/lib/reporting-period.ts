@@ -30,12 +30,10 @@ export type ReportingPeriodClient = {
 
 interface SalaryRow {
   date: string;
-  categories: { name?: string } | null;
 }
 
 interface CategoryRow {
   id: string;
-  name: string;
 }
 
 export type ReportingPeriodMode = 'this_month' | 'salary_cycle';
@@ -184,14 +182,14 @@ async function querySalaryCategoryIds(
 ): Promise<{ ids: string[]; error: { message: string } | null }> {
   const { data, error } = await admin
     .from('categories')
-    .select('id, name')
+    .select('id')
     .eq('account_id', accountId)
-    .limit(1000);
+    .eq('type', 'income')
+    .eq('code', 'salary')
+    .limit(1);
 
   return {
-    ids: (data ?? [])
-      .filter((row) => row.name.trim().toLowerCase() === 'gaji')
-      .map((row) => row.id),
+    ids: (data ?? []).map((row) => row.id),
     error,
   };
 }
@@ -206,7 +204,7 @@ async function queryIncomeRows(
 ): Promise<QueryResponse<SalaryRow>> {
   let query = admin
     .from('transactions')
-    .select('date, categories(name)')
+    .select('date')
     .eq('account_id', accountId)
     .eq('type', 'income')
     .in('category_id', salaryCategoryIds)
@@ -217,5 +215,5 @@ async function queryIncomeRows(
     query = query.gte('date', range.from).lte('date', range.to);
   }
 
-  return await query.limit(1000);
+  return await query.limit(1);
 }

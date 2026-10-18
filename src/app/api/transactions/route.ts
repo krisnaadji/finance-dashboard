@@ -3,10 +3,11 @@ import { NextResponse } from 'next/server';
 import { requireUser, requireAccountMember } from '@/lib/server-auth';
 import { isUuid, parseFinancialJson } from '@/lib/financial-validation';
 import { apiError, checkMutationRequest } from '@/lib/api-response';
-import { decodeFinanceBudgetSpending } from '@/lib/reporting-contract';
+import { decodeFinanceBudgetSpending, decodeTransactionView } from '@/lib/reporting-contract';
+import { categoryLabel, type Category } from '@/lib/categories';
 import { budgetPercent, compareMoney } from '@/lib/money';
 import { currentMonthRange } from '@/lib/business-date';
-import { parseTransactionInput, validateTransactionCategory } from '@/lib/transaction-validation';
+import { parseTransactionInput, validateTransactionCategory, transactionCategoryProjection, validateTransactionFilters } from '@/lib/transaction-validation';
 import { parseTransactionFilters } from '@/lib/transaction-filters';
 
 
@@ -23,39 +24,25 @@ export async function GET(req: Request) {
   if (!filters) return apiError(400, 'invalid_request');
   const page = Number(searchParams.get('page') ?? '1');
   const pageSize = Number(searchParams.get('page_size') ?? '20');
-  if (!Number.isSafeInteger(page) || page < 1 ||
+  if (!Number.isSafeInteger(page) || page < 1 || page > 2_147_483_647 ||
       !Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 99999 ||
       !Number.isSafeInteger((page - 1) * pageSize)) return apiError(400, 'invalid_request');
 
   const admin = createAdminClient();
-  const from_ = (page - 1) * pageSize;
-  const to_ = from_ + pageSize - 1;
-
-  let query = admin
-    .from('transactions')
-    .select('*, amount_text:amount::text, categories(name)', { count: 'exact' })
-    .eq('account_id', filters.accountId)
-    .order('date', { ascending: false })
-    .order('created_at', { ascending: false })
-    .order('id', { ascending: false })
-    .range(from_, to_);
-
-  if (filters.from) query = query.gte('date', filters.from);
-  if (filters.to) query = query.lte('date', filters.to);
-  if (filters.type) query = query.eq('type', filters.type);
-  if (filters.search) query = query.ilike('description', `%${filters.search}%`);
-  if (filters.categoryId) query = query.eq('category_id', filters.categoryId);
-
-  const { data, count, error } = await query;
-  if (error) return apiError(503, 'dependency_unavailable');
-  if ((data ?? []).some(row => typeof row.amount_text !== 'string')) return apiError(503, 'dependency_unavailable');
-  return NextResponse.json({
-    data: (data ?? []).map(({ amount_text, ...row }) => ({ ...row, amount: amount_text })),
-    total: count ?? 0,
-    page,
-    pageSize,
-    totalPages: Math.ceil((count ?? 0) / pageSize),
+  const filterError = await validateTransactionFilters(admin, filters, searchParams);
+  if (filterError) return filterError;
+  const result = await admin.rpc('finance_transaction_view', {
+    p_account_id: accountId, p_filters: filters, p_page: page, p_page_size: pageSize,
   });
+  if (result.error) return apiError(result.error.code === '22023' ? 400 : 503,
+    result.error.code === '22023' ? 'invalid_request' : 'dependency_unavailable');
+  if (result.data?.code === 'invalid') return apiError(400, 'invalid_request');
+  if (result.data?.code === 'forbidden') return apiError(403, 'forbidden');
+  try {
+    const view = decodeTransactionView(result.data);
+    if (view.rows.length > pageSize || view.rows.some(row => row.account_id !== accountId)) return apiError(503,'dependency_unavailable');
+    return NextResponse.json({data:view.rows,total:view.total,summary:view.summary,page,pageSize,totalPages:Math.ceil(view.total/pageSize)});
+  } catch { return apiError(503,'dependency_unavailable'); }
   } catch {
     return apiError(500, 'internal_error');
   }
@@ -80,50 +67,50 @@ export async function POST(req: Request) {
       description: input.description ?? '', category_id: input.category_id ?? null,
       raw_message: null, wa_user_message_id: null,
       recorded_by_name: access.access.displayName, recorded_by_phone: null,
-    }).select('*, amount_text:amount::text, categories(name)').single();
+    }).select('*, amount_text:amount::text').single();
     if (error) return apiError(503, 'dependency_unavailable');
     if (!txn) return apiError(404, 'not_found');
     if (typeof txn.amount_text !== 'string') return apiError(503, 'dependency_unavailable');
     const { amount_text, ...transaction } = txn;
-    const exactTransaction = { ...transaction, amount: amount_text };
+    const {categoryProjectionError,...projection} = await transactionCategoryProjection(admin,input.account_id!,input.type!,input.category_id??null);
+    const exactTransaction = { ...transaction, amount: amount_text, ...projection };
     const type = input.type!;
-    const category_id = input.category_id ?? null;
+    const category_id = projection.parent?.id ?? input.category_id ?? null;
+    const root = projection.parent ?? projection.categories;
+    const warningLabel = root ? categoryLabel(root,'id') : '';
     const account_id = input.account_id!;
-    let budgetWarning: { category_name: string; spent: string; limit: string; pct: number; over: boolean } | null = null;
-    let budgetWarningError: string | undefined;
-    if (type === 'expense' && category_id) {
-      const budget = await admin.from('budgets').select('amount_text:amount::text').eq('account_id', account_id)
-        .eq('category_id', category_id).maybeSingle();
-      if (budget.error) budgetWarningError = 'dependency_unavailable';
-      else if (budget.data) {
-        try {
+    let budgetWarning: { category_name: string; category: Category; spent: string; limit: string; pct: number; over: boolean } | null = null;
+    let budgetWarningError: string | undefined = categoryProjectionError;
+    if (!categoryProjectionError && type === 'expense' && category_id) {
+      try {
+        const budget = await admin.from('budgets').select('amount_text:amount::text').eq('account_id', account_id)
+          .eq('category_id', category_id).maybeSingle();
+        if (budget.error) budgetWarningError = 'dependency_unavailable';
+        else if (budget.data) {
           const { from, to } = currentMonthRange();
-        const spend = await admin.rpc('finance_budget_spending', {
-          p_account_id: account_id, p_from: from, p_to: to,
-        });
-        if (spend.error) budgetWarningError = 'dependency_unavailable';
-        else {
-          try {
+          const spend = await admin.rpc('finance_budget_spending', {
+            p_account_id: account_id, p_from: from, p_to: to,
+          });
+          if (spend.error) budgetWarningError = 'dependency_unavailable';
+          else {
             const report = decodeFinanceBudgetSpending(spend.data);
             const spent = report.spendingByCategoryId[category_id] ?? '0.00';
             const limit = budget.data.amount_text;
             const pct = Math.round(budgetPercent(spent, limit));
             const over = compareMoney(spent, limit) > 0;
-            if (over || pct >= 80) budgetWarning = {
-              category_name: (txn.categories as { name?: string } | null)?.name ?? '',
+            if (root && (over || pct >= 80)) budgetWarning = {
+              category_name: warningLabel, category: root,
               spent, limit, pct, over,
             };
-          } catch {
-            budgetWarningError = 'dependency_unavailable';
           }
         }
-        } catch {
-          budgetWarningError = 'dependency_unavailable';
-        }
+      } catch {
+        budgetWarningError = 'dependency_unavailable';
       }
     }
     return NextResponse.json({
-      transaction: exactTransaction, budgetWarning, ...(budgetWarningError ? { budgetWarningError } : {}),
+      transaction: exactTransaction, budgetWarning, ...(categoryProjectionError ? { categoryProjectionError } : {}),
+      ...(budgetWarningError ? { budgetWarningError } : {}),
     });
   } catch {
     return apiError(500, 'internal_error');

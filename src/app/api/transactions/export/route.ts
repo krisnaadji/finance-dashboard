@@ -4,12 +4,13 @@ import { isBusinessDate, isRecord, isUuid } from '@/lib/financial-validation';
 import { cents } from '@/lib/money';
 import { csvCell } from '@/lib/csv';
 import { parseTransactionFilters } from '@/lib/transaction-filters';
+import { validateTransactionFilters } from '@/lib/transaction-validation';
 import { createAdminClient } from '@/lib/supabase-server';
 
 const PAGE_LIMIT = 500;
 const MAX_EXPORT_ROWS = 99_999;
 const MAX_CSV_BYTES = 32 * 1024 * 1024;
-const HEADERS = ['Date', 'Description', 'Category', 'Type', 'Amount'];
+const HEADERS = ['Date', 'Description', 'Category', 'Subcategory', 'Type', 'Amount'];
 const textEncoder = new TextEncoder();
 
 type ExportRow = {
@@ -18,6 +19,7 @@ type ExportRow = {
   date: string;
   description: string;
   category: string;
+  subcategory: string;
   type: 'income' | 'expense';
   amount: string;
 };
@@ -42,10 +44,11 @@ function decodePage(value: unknown, after: number, limit: number): ExportRow[] |
     if (!isRecord(row) || !Number.isSafeInteger(row.ordinal) || row.ordinal !== after + index + 1 ||
         !isUuid(row.transactionId) || !isBusinessDate(row.date) ||
         typeof row.description !== 'string' || typeof row.category !== 'string' ||
+        (row.subcategory !== undefined && typeof row.subcategory !== 'string') ||
         (row.type !== 'income' && row.type !== 'expense') || typeof row.amount !== 'string') return null;
     try { if (cents(row.amount) <= 0n) return null; } catch { return null; }
     rows.push({ ordinal: row.ordinal as number, transactionId: row.transactionId,
-      date: row.date, description: row.description, category: row.category,
+      date: row.date, description: row.description, category: row.category, subcategory: row.subcategory ?? '',
       type: row.type, amount: row.amount });
   }
   return rows;
@@ -71,6 +74,8 @@ export async function GET(req: Request): Promise<Response> {
     if (!filters) return apiError(400, 'invalid_request');
 
     const admin = createAdminClient();
+    const filterError = await validateTransactionFilters(admin, filters, searchParams);
+    if (filterError) return filterError;
     const started = await admin.rpc('start_finance_export', {
       p_user_id: auth.user.id, p_filters: filters,
     });
@@ -102,7 +107,7 @@ export async function GET(req: Request): Promise<Response> {
       let bytes = textEncoder.encode(lines[0]).byteLength + 2;
       for (const row of rows) {
         const line = [
-          csvCell(row.date, false), csvCell(row.description, true), csvCell(row.category, true),
+          csvCell(row.date, false), csvCell(row.description, true), csvCell(row.category, true), csvCell(row.subcategory, true),
           csvCell(row.type, false), csvCell(row.amount, false),
         ].join(',');
         bytes += textEncoder.encode(line).byteLength + 2;

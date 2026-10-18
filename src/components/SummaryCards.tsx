@@ -18,11 +18,11 @@ export function SummaryCards({ income, expense, net, topExpenseCategory, topExpe
       <Card label={t('income')}  value={formatIDR(income)}  accent="emerald" index={0} />
       <Card label={t('expense')} value={formatIDR(expense)} accent="red"     index={1} />
       <Card label={t('balance')} value={formatIDR(net)}     accent="sky"     index={2} />
-      {topExpenseCategory && (
+      {topExpenseCategory && topExpenseAmount && (
         <Card
           label={t('topExpense')}
           value={topExpenseCategory}
-          sub={formatIDR(topExpenseAmount ?? 0)}
+          sub={formatIDR(topExpenseAmount)}
           accent="amber"
           index={3}
         />
@@ -57,7 +57,7 @@ function Card({
   return (
     <GlassCard
       tint={accent}
-      className="p-4 md:p-5 animate-fade-up"
+      className="min-w-0 p-4 md:p-5 animate-fade-up"
       style={{ animationDelay: `${index * 75}ms` }}
     >
       {/* Accent top-line */}
@@ -68,7 +68,7 @@ function Card({
       />
       <p
         className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest mb-3"
-        style={{ color: 'rgba(241,245,249,0.3)' }}
+        style={{ color: 'rgba(241,245,249,0.7)' }}
       >
         <span
           aria-hidden
@@ -78,13 +78,13 @@ function Card({
         {label}
       </p>
       <p
-        className="text-xl md:text-2xl font-semibold tracking-tight leading-none"
+        className="break-words [overflow-wrap:anywhere] text-lg sm:text-xl md:text-2xl font-semibold tracking-tight leading-snug"
         style={{ color: text }}
       >
         {value}
       </p>
       {sub && (
-        <p className="text-xs mt-1.5" style={{ color: 'rgba(241,245,249,0.3)' }}>
+        <p className="text-xs mt-1.5 break-words" style={{ color: 'rgba(241,245,249,0.7)' }}>
           {sub}
         </p>
       )}

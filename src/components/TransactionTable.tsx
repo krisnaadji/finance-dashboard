@@ -1,6 +1,8 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
+import { useState, useEffect, useRef } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import { CategorySelector } from '@/components/CategorySelector';
+import { categoryPath, type Category, type CategoryLocale, type CategoryType } from '@/lib/categories';
 import { formatIDR, formatDate } from '@/lib/utils';
 import { useAccountId } from '@/components/AccountSwitcher';
 
@@ -11,15 +13,12 @@ interface Transaction {
   amount: string;
   category_id: string | null;
   type: string;
-  categories: { name: string } | null;
+  categories: Category | null;
+  parent: Category | null;
+  categoryProjectionError?: 'dependency_unavailable';
   recorded_by_name?: string;
   recorded_by_phone?: string;
   edited_by_name?: string;
-}
-interface Category {
-  id: string;
-  name: string;
-  type: string;
 }
 interface Props {
   transactions: Transaction[];
@@ -31,8 +30,18 @@ interface Props {
 
 export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, isGroup }: Props) {
   const t = useTranslations('transactions');
+  const h = useTranslations('hierarchy');
+  const locale = useLocale() as CategoryLocale;
   const accountId = useAccountId();
+  const [error, setError] = useState('');
+  const currentAccount = useRef(accountId);
+  currentAccount.current = accountId;
   const [cats, setCats] = useState<Category[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogError, setCatalogError] = useState(false);
+  const [catalogTick, setCatalogTick] = useState(0);
+  const editRevision = useRef(0);
+  const catalogAccount = useRef('');
   const [deleting, setDeleting] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
@@ -44,137 +53,107 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
   });
   const [saving, setSaving] = useState(false);
 
-  // Load categories for the dropdown
   useEffect(() => {
+    if (catalogAccount.current !== accountId) {
+      catalogAccount.current = accountId; editRevision.current++; setEditing(null); setCats([]); setError(''); setSaving(false); setDeleting(null);
+    }
     if (!accountId) return;
-    fetch('/api/categories?account_id=' + accountId)
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) setCats(data);
-      });
-  }, [accountId]);
+    const controller = new AbortController(); setCatalogLoading(true); setCatalogError(false);
+    fetch('/api/categories?include_inactive=true&account_id=' + accountId, { signal: controller.signal })
+      .then(async r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(data => { if (!controller.signal.aborted && Array.isArray(data)) setCats(data); })
+      .catch(() => { if (!controller.signal.aborted) setCatalogError(true); })
+      .finally(() => { if (!controller.signal.aborted) setCatalogLoading(false); });
+    return () => controller.abort();
+  }, [accountId, catalogTick]);
 
   function startEdit(txn: Transaction) {
+    editRevision.current++;
+    setSaving(false);
     setEditing(txn.id);
-    const catMatch = cats.find((c) => c.id === txn.category_id);
+    setError('');
     setEditForm({
       description: txn.description,
       amount: String(txn.amount),
       type: txn.type,
       date: txn.date.slice(0, 10),
-      category_id: catMatch?.id ?? '',
+      category_id: txn.category_id ?? '',
     });
   }
 
   async function saveEdit(id: string) {
-    setSaving(true);
-    const res = await fetch('/api/transactions/' + id, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        description: editForm.description,
-        amount: editForm.amount,
-        type: editForm.type,
-        date: editForm.date,
-        category_id: editForm.category_id || null,
-      }),
-    });
-    const updated = await res.json();
-    if (updated.id) onUpdate(updated);
-    setSaving(false);
-    setEditing(null);
+    setSaving(true); setError('');
+    const account = accountId;
+    const revision = editRevision.current;
+    const original = transactions.find(txn => txn.id === id);
+    try {
+      const res = await fetch('/api/transactions/' + id, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: editForm.description, amount: editForm.amount, type: editForm.type, date: editForm.date,
+          ...((editForm.category_id || null) !== original?.category_id || editForm.type !== original?.type ? { category_id: editForm.category_id || null } : {}),
+        }),
+      });
+      if (!res.ok) { if (res.status === 409 && account === currentAccount.current && revision === editRevision.current) { setError(h('editConflict')); return; } throw new Error(); }
+      const updated = await res.json();
+      if (account !== currentAccount.current || revision !== editRevision.current) return;
+      onUpdate(updated); setEditing(null);
+    } catch { if (account === currentAccount.current && revision === editRevision.current) setError(h('saveFailed')); }
+    finally { if (account === currentAccount.current && revision === editRevision.current) setSaving(false); }
   }
 
   async function handleDelete(id: string) {
     if (!confirm(t('confirmDelete'))) return;
-    setDeleting(id);
-    await fetch('/api/transactions/' + id, { method: 'DELETE' });
-    setDeleting(null);
-    onDelete(id);
+    const account = accountId; setDeleting(id); setError('');
+    try {
+      const response = await fetch('/api/transactions/' + id, { method: 'DELETE' });
+      if (!response.ok) throw new Error();
+      if (account === currentAccount.current) onDelete(id);
+    } catch { if (account === currentAccount.current) setError(h('saveFailed')); }
+    finally { if (account === currentAccount.current) setDeleting(null); }
   }
 
   if (!transactions.length)
     return <p className="text-center text-white/30 py-12 text-sm">{t('empty')}</p>;
 
   const inp =
-    'bg-white/[0.06] border border-white/[0.1] text-white rounded-lg px-2 py-1.5 text-sm w-full box-border';
+    'min-h-11 bg-white/[0.06] border border-white/[0.1] text-white rounded-lg px-2 py-1.5 text-sm w-full box-border focus-visible:outline-emerald-400';
 
   // Shared edit form JSX used in both mobile and desktop.
   // Keep this as a render helper, not a nested component, so inputs are not
   // remounted on every keystroke and mobile keyboards keep focus.
   function renderEditForm(id: string, mobile?: boolean) {
-    const filteredCats = cats.filter((c) => c.type === editForm.type);
-    return (
-      <div
-        className={
-          mobile ? 'space-y-2 w-full' : 'flex flex-wrap gap-2 items-center'
-        }
-      >
-        <input
-          className={inp + (mobile ? '' : ' flex-1 min-w-40')}
-          placeholder="Description"
-          value={editForm.description}
-          onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
-        />
-        <input
-          className={inp + (mobile ? '' : ' w-32')}
-          type="number"
-          placeholder="Amount"
-          value={editForm.amount}
-          onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))}
-        />
-        <input
-          className={inp + (mobile ? '' : ' w-36')}
-          type="date"
-          style={{ colorScheme: 'dark', maxWidth: '100%', appearance: 'none', WebkitAppearance: 'none' }}
-          value={editForm.date}
-          onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
-        />
-        <select
-          className={inp + (mobile ? '' : ' w-28')}
-          value={editForm.type}
-          onChange={(e) => setEditForm((f) => ({ ...f, type: e.target.value, category_id: '' }))}
-        >
-          <option value="expense" className="bg-[#1a1a1f]">
-            {t('expense')}
-          </option>
-          <option value="income" className="bg-[#1a1a1f]">
-            {t('income')}
-          </option>
+    const original = transactions.find(txn => txn.id === id);
+    const history = [original?.parent, original?.categories].filter((c): c is Category => !!c && !cats.some(option => option.id === c.id));
+    return <fieldset disabled={saving} className={mobile ? 'space-y-3 w-full' : 'flex flex-wrap gap-3 items-end'}>
+      <label className="block min-w-0 flex-1 text-sm text-white/70">{t('description')}
+        <input className={inp} value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
+      </label>
+      <label className="block min-w-0 text-sm text-white/70">{t('amount')}
+        <input className={inp} inputMode="decimal" value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} />
+      </label>
+      <label className="block min-w-0 text-sm text-white/70">{t('date')}
+        <input className={inp} type="date" style={{ colorScheme: 'dark', maxWidth: '100%', appearance: 'none' }} value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} />
+      </label>
+      <label className="block min-w-0 text-sm text-white/70">{t('type')}
+        <select className={inp} value={editForm.type} onChange={e => setEditForm(f => ({ ...f, type: e.target.value, category_id: '' }))}>
+          <option value="expense" className="bg-[#1a1a1f]">{t('expense')}</option>
+          <option value="income" className="bg-[#1a1a1f]">{t('income')}</option>
         </select>
-        <select
-          className={inp + (mobile ? '' : ' w-36')}
-          value={editForm.category_id}
-          onChange={(e) => setEditForm((f) => ({ ...f, category_id: e.target.value }))}
-        >
-          <option value="">— Category —</option>
-          {filteredCats.map((c) => (
-            <option key={c.id} value={c.id} className="bg-[#1a1a1f]">
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <div className={mobile ? 'flex gap-2 pt-1' : 'flex gap-2'}>
-          <button
-            onClick={() => saveEdit(id)}
-            disabled={saving}
-            className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-sm disabled:opacity-40 whitespace-nowrap"
-          >
-            {saving ? '...' : 'Save'}
-          </button>
-          <button
-            onClick={() => setEditing(null)}
-            className="rounded-lg bg-white/[0.06] text-white/60 px-3 py-1.5 text-sm whitespace-nowrap"
-          >
-            Cancel
-          </button>
-        </div>
+      </label>
+      <CategorySelector categories={[...cats, ...history]} type={editForm.type as CategoryType} value={editForm.category_id || null} onChange={value => setEditForm(f => ({ ...f, category_id: value ?? '' }))} locale={locale} historicalValue={original?.categories} disabled={saving || catalogLoading || catalogError} />
+      <div className="flex gap-2">
+        <button type="button" onClick={() => saveEdit(id)} disabled={saving} className="min-h-11 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm text-white disabled:opacity-40 focus-visible:outline-emerald-400">{h(saving ? 'saving' : 'save')}</button>
+        <button type="button" onClick={() => { editRevision.current++; setEditing(null); }} className="min-h-11 rounded-lg bg-white/[0.06] px-3 py-1.5 text-sm text-white/80 focus-visible:outline-emerald-400">{h('cancel')}</button>
       </div>
-    );
+    </fieldset>;
   }
 
   return (
     <div>
+      {error && <p role="alert" className="p-3 text-red-300">{error}</p>}
+      {catalogLoading && editing && <p role="status" className="p-3 text-white/70">{h('loading')}</p>}
+      {catalogError && <div role="alert" className="p-3 text-red-300">{h('loadFailed')} <button type="button" onClick={() => setCatalogTick(n => n + 1)} className="min-h-11 rounded border border-white/20 px-3 text-white focus-visible:outline-emerald-400">{h('retry')}</button></div>}
       {/* ── MOBILE: card view ── */}
       <div className="md:hidden divide-y divide-white/[0.06]">
         {transactions.map((txn) => (
@@ -186,7 +165,7 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-white text-sm truncate">{txn.description}</p>
                   <p className="text-xs text-white/40 mt-0.5">
-                    {formatDate(txn.date)} · {txn.categories?.name ?? '—'}
+                    {formatDate(txn.date, locale)} · {txn.categories ? categoryPath(txn.categories, txn.parent ? [txn.parent, txn.categories] : [txn.categories], locale) : h('uncategorized')}
                   </p>
                   {isGroup && txn.recorded_by_name && (
                     <p className="text-[10px] text-white/25 mt-0.5">by {txn.recorded_by_name}</p>
@@ -208,23 +187,21 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
                     {formatIDR(txn.amount)}
                   </span>
                   <div className="flex gap-2">
-                    {isOwner !== false && (
-                      <>
+                    <>
                         <button
                           onClick={() => startEdit(txn)}
-                          className="text-xs text-white/30 hover:text-white/60"
+                          className="min-h-11 min-w-11 text-xs text-white/80 hover:text-white focus-visible:outline-emerald-400"
                         >
                           {t('edit')}
                         </button>
-                        <button
+                        {isOwner !== false && <button
                           onClick={() => handleDelete(txn.id)}
                           disabled={deleting === txn.id}
-                          className="text-xs text-red-400/60 hover:text-red-400 disabled:opacity-40"
+                          className="min-h-11 min-w-11 text-xs text-red-300 hover:text-red-200 disabled:opacity-40 focus-visible:outline-emerald-400"
                         >
                           {deleting === txn.id ? '...' : t('delete')}
-                        </button>
-                      </>
-                    )}
+                        </button>}
+                    </>
                   </div>
                 </div>
               </div>
@@ -258,10 +235,10 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
                 ) : (
                   <>
                     <td className="px-4 py-3 text-white/40 text-xs whitespace-nowrap">
-                      {formatDate(txn.date)}
+                      {formatDate(txn.date, locale)}
                     </td>
                     <td className="px-4 py-3 text-white/80 font-medium">{txn.description}</td>
-                    <td className="px-4 py-3 text-white/40">{txn.categories?.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-white/70">{txn.categories ? categoryPath(txn.categories, txn.parent ? [txn.parent, txn.categories] : [txn.categories], locale) : h('uncategorized')}</td>
                     <td className="px-4 py-3">
                       <span
                         className={
@@ -284,8 +261,7 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
                       {formatIDR(txn.amount)}
                     </td>
                     <td className="px-4 py-3">
-                      {isOwner !== false && (
-                        <>
+                      <>
                           <div className="flex gap-3">
                             <button
                               onClick={() => startEdit(txn)}
@@ -293,16 +269,15 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
                             >
                               {t('edit')}
                             </button>
-                            <button
+                            {isOwner !== false && <button
                               onClick={() => handleDelete(txn.id)}
                               disabled={deleting === txn.id}
                               className="text-xs text-red-400/60 hover:text-red-400 disabled:opacity-40"
                             >
                               {deleting === txn.id ? '...' : t('delete')}
-                            </button>
+                            </button>}
                           </div>
-                        </>
-                      )}
+                      </>
                     </td>
                   </>
                 )}

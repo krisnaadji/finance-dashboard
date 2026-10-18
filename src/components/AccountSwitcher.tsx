@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 interface Account {
   id: string;
@@ -20,10 +21,7 @@ export function refreshAccountSwitcher() {
 }
 
 export function setSelectedAccountId(id: string, role = 'owner', type = 'personal') {
-  _accountId = id;
-  _accountRole = role;
-  _accountType = type;
-  _subs.forEach((f) => f());
+  _set(id, role, type);
 }
 
 export function useAccountId() {
@@ -66,20 +64,25 @@ export function useAccountType() {
 }
 
 export function AccountSwitcher() {
+  const t = useTranslations('accounts');
+  const h = useTranslations('hierarchy');
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [current, setCurrent] = useState(_accountId);
+  const [loadError, setLoadError] = useState(false);
 
   function loadAccounts() {
+    setLoadError(false);
     fetch('/api/accounts')
-      .then((r) => r.json())
+      .then(async r => { if (!r.ok) throw new Error(); return r.json(); })
       .then((data: Account[]) => {
-        if (!Array.isArray(data) || !data.length) return;
+        if (!Array.isArray(data)) throw new Error();
         setAccounts(data);
-        if (!_accountId) {
-          _set(data[0].id, data[0].role, data[0].type);
-          setCurrent(data[0].id);
-        }
-      });
+        if (!data.length) return;
+        const requested = _accountId || new URLSearchParams(window.location.search).get('account_id');
+        const selected = data.find(a => a.id === requested) ?? data[0];
+        _set(selected.id, selected.role, selected.type);
+        setCurrent(selected.id);
+      }).catch(() => setLoadError(true));
   }
 
   useEffect(() => {
@@ -90,23 +93,28 @@ export function AccountSwitcher() {
     };
   }, []);
 
+  if (loadError) return <div role="alert" className="p-2 text-sm text-red-300">{h('loadFailed')} <button type="button" onClick={loadAccounts} className="min-h-11 rounded border border-white/20 px-3 text-white focus-visible:outline-emerald-400">{h('retry')}</button></div>;
   if (!accounts.length) return null;
 
   function handleChange(id: string) {
-    const account = accounts.find((a) => a.id === id);
+    const account = accounts.find(a => a.id === id);
+    if (!account) return;
     setCurrent(id);
-    _set(id, account?.role ?? 'member', account?.type ?? 'personal');
+    const url = new URL(window.location.href);
+    for (const key of ['category_id', 'subcategory_id', 'category_scope']) url.searchParams.delete(key);
+    window.history.replaceState(null, '', url);
+    _set(account.id, account.role, account.type);
   }
 
   return (
     <div className="px-1">
-      <p className="text-[10px] font-medium text-white/30 uppercase tracking-widest mb-1.5 px-2">
-        Account
-      </p>
-      <select
+      <label htmlFor="account-switcher" className="mb-1.5 block px-2 text-sm font-medium text-white/70">
+        {t('title')}
+      </label>
+      <select id="account-switcher"
         value={current}
         onChange={(e) => handleChange(e.target.value)}
-        className="w-full bg-white/[0.06] border border-white/[0.08] text-white text-sm rounded-lg px-3 py-2 appearance-none cursor-pointer hover:bg-white/[0.1] transition-colors"
+        className="min-h-11 w-full bg-white/[0.06] border border-white/20 text-white text-sm rounded-lg px-3 py-2 cursor-pointer hover:bg-white/[0.1] transition-colors focus-visible:outline-emerald-400"
       >
         {accounts.map((a) => (
           <option key={a.id} value={a.id} className="bg-[#1a1a1f] text-white">
@@ -122,5 +130,8 @@ function _set(id: string, role: string, type: string) {
   _accountId = id;
   _accountRole = role;
   _accountType = type;
+  const url = new URL(window.location.href);
+  url.searchParams.set('account_id', id);
+  window.history.replaceState(null, '', url);
   _subs.forEach((fn) => fn());
 }
