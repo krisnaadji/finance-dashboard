@@ -25,7 +25,7 @@ describe('hierarchy presentation', () => {
     const inactive = { ...child, is_active: false };
     const html = renderToStaticMarkup(React.createElement(CategorySelector, { categories: [root, inactive], type: 'expense', value: inactive.id, historicalValue: inactive, onChange: () => {}, locale: 'en' }));
     expect(html).toContain('Pets / Care (inactive)');
-    expect(html).toContain('value="child" selected=""');
+    expect(html).toMatch(/<option\b(?=[^>]*\bvalue="child")(?=[^>]*\bselected="")[^>]*>/);
   });
 
   it('shows root totals once and keeps uncategorized separate from drilldown', () => {
