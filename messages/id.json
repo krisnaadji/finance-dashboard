@@ -11,7 +11,7 @@
     "income": "Total Pemasukan",
     "expense": "Total Pengeluaran",
     "balance": "Saldo",
-    "topExpense": "Pengeluaran Terbesar",
+    "topExpense": "Kategori pengeluaran terbesar",
     "noData": "Belum ada transaksi periode ini"
   },
   "transactions": {
@@ -52,8 +52,8 @@
     "cancel": "Batal",
     "amountInvalid": "Jumlah harus lebih dari nol",
     "saveFailed": "Gagal menyimpan transaksi",
-    "budgetOver": "Budget {category} terlampaui: Rp{spent} / Rp{limit} ({pct}%)",
-    "budgetNear": "Budget {category}: Rp{spent} / Rp{limit} ({pct}%)"
+    "budgetOver": "Anggaran {category} terlampaui: {spent} / {limit} ({pct}%)",
+    "budgetNear": "Anggaran {category}: {spent} / {limit} ({pct}%)"
   },
   "accounts": {
     "title": "Akun",
@@ -76,6 +76,39 @@
     "name": "Nama Kategori",
     "custom": "Kustom"
   },
+  "hierarchy": {
+    "category": "Kategori", "categories": "Kategori", "subcategory": "Subkategori",
+    "none": "Tanpa kategori", "inactive": "Nonaktif", "uncategorized": "Tanpa kategori",
+    "income": "Pemasukan", "expense": "Pengeluaran", "type": "Jenis",
+    "addCategory": "Tambah kategori", "addTransaction": "Tambah transaksi",
+    "originalLanguage": "Bahasa asli", "nameId": "Nama bahasa Indonesia", "nameEn": "Nama bahasa Inggris",
+    "parent": "Kategori induk (opsional)", "root": "Tanpa induk (kategori utama)",
+    "suggestTranslation": "Sarankan terjemahan", "translating": "Meminta terjemahan...",
+    "retryTranslation": "Ulangi terjemahan", "translationFailed": "Terjemahan tidak tersedia. Coba lagi, isi sendiri, atau simpan nama asli.",
+    "nameRequired": "Isi setidaknya satu nama kategori.",
+    "monthlyBudget": "Anggaran bulanan", "monthlyBudgets": "Anggaran bulanan",
+    "budgetHelp": "Kosongkan atau isi 0 untuk menghapus batas.",
+    "budgetInvalid": "Isi anggaran positif dengan maksimal dua angka desimal, atau 0 untuk menghapusnya.",
+    "budgetPartialFailure": "Nama tersimpan, tetapi anggaran belum tersimpan. Periksa anggaran lalu coba Simpan lagi.",
+    "legacyBudgetNote": "Anggaran Kebutuhan Pokok tetap di Kebutuhan Pokok. Makanan & Minuman dan Rumah Tangga memiliki anggaran sendiri. Hanya pemilik akun yang dapat mengubah batas tersebut secara eksplisit.",
+    "budgetScope": "Bulan kalender berjalan, mencakup pengeluaran langsung dan seluruh subkategori. Pilihan siklus gaji tidak mengubah periode anggaran ini.",
+    "direct": "Tanpa subkategori", "allDetail": "Semua rincian", "allTypes": "Semua jenis", "allCategories": "Semua kategori",
+    "filtersReset": "Filter kategori yang tidak tersedia telah dihapus. Periksa pilihan saat ini.",
+    "expenseByCategory": "Pengeluaran per kategori", "chartScope": "Seluruh pengeluaran pada periode laporan terpilih. Pilih kategori untuk melihat rinciannya.",
+    "emptyExpenses": "Belum ada pengeluaran pada periode ini.", "emptyCategories": "Belum ada kategori. Pemilik akun dapat menambahkannya.",
+    "edit": "Ubah", "delete": "Nonaktifkan", "confirmDelete": "Nonaktifkan kategori ini? Transaksi lama tetap menyimpan kategorinya.",
+    "save": "Simpan", "saving": "Menyimpan...", "cancel": "Batal", "retry": "Coba lagi", "back": "Kembali",
+    "loading": "Memuat data keuangan...", "loadFailed": "Data keuangan tidak dapat dimuat. Silakan coba lagi.",
+    "saveFailed": "Perubahan tidak dapat disimpan. Isian Anda tetap tersedia. Silakan coba lagi.",
+    "search": "Cari deskripsi", "clear": "Hapus pencarian", "net": "Selisih",
+    "transactionCount": "{count} transaksi",
+    "show": "Tampilkan", "page": "Halaman", "previous": "Sebelumnya", "next": "Berikutnya",
+    "topExpenses": "Pengeluaran terbesar", "topIncomes": "Pemasukan terbesar", "overBudget": "Melebihi anggaran",
+    "showHistory": "Lihat riwayat bulanan",
+    "budgetWarningUnavailable": "Transaksi tersimpan. Pemeriksaan anggaran tidak tersedia sehingga peringatan belum dapat ditampilkan. Periksa anggaran bulanan di dasbor.",
+    "editConflict": "Transaksi ini berubah saat Anda mengeditnya. Isian tetap tersedia. Batalkan dan muat ulang tabel sebelum mencoba lagi.",
+    "savedCategoryUnavailable": "Transaksi tersimpan dengan pilihan kategori tetap utuh. Nama kategori sementara tidak tersedia. Muat ulang tabel untuk menampilkannya; jangan kirim transaksi lagi."
+  },
   "language": { "label": "Bahasa", "id": "Indonesia", "en": "English" },
   "auth": { "signIn": "Masuk dengan Google", "signOut": "Keluar" },
   "period": {
@@ -89,8 +122,10 @@
     "year": "Tahun",
     "range": "{from} s/d {to}",
     "salaryBadge": "Siklus gaji: {month} {year}",
-    "salaryMissing": "Tidak ada transaksi pemasukan kategori Gaji untuk periode ini. Catat gaji terlebih dahulu.",
+    "salaryMissing": "Tidak ada transaksi gaji rutin untuk periode ini. Catat gaji terlebih dahulu.",
     "invalidPeriod": "Sesuaikan periode yang dipilih.",
-    "resolveFailed": "Gagal menentukan periode laporan."
+    "resolveFailed": "Gagal menentukan periode laporan.",
+    "from": "Dari", "to": "Sampai", "retry": "Coba lagi",
+    "resolving": "Menentukan periode gaji..."
   }
 }

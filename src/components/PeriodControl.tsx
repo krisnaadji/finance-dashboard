@@ -1,7 +1,8 @@
 'use client';
 
 import { currentMonthRange } from '@/lib/reporting-period';
-import { useTranslations } from 'next-intl';
+import { isBusinessDate } from '@/lib/financial-validation';
+import { useLocale, useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -14,6 +15,7 @@ export interface PeriodValue {
   salaryMonth: number;
   salaryYear: number;
   valid: boolean;
+  resolvedAccountId?: string;
 }
 
 export interface PeriodControlProps {
@@ -37,25 +39,47 @@ type PeriodApiResponse =
     };
 
 const inputClass =
-  'min-w-0 bg-white/[0.06] border border-white/[0.1] text-white rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-emerald-400/50';
+  'min-h-11 min-w-0 bg-white/[0.06] border border-white/[0.1] text-white rounded-lg px-2.5 py-1.5 text-xs focus-visible:outline-emerald-400';
 
-export function createInitialPeriodValue(now = new Date()): PeriodValue {
+export function createInitialPeriodValue(now = new Date(), restoreQuery = false): PeriodValue {
   const range = currentMonthRange(now);
+  const salaryMonth = Number(range.from.slice(5, 7));
+  const salaryYear = Number(range.from.slice(0, 4));
 
+  if (restoreQuery && typeof window !== 'undefined') {
+    const query = new URLSearchParams(window.location.search);
+    const mode = query.get('period');
+    if (mode === 'custom') {
+      const from = query.get('from') ?? '';
+      const to = query.get('to') ?? '';
+      if (isBusinessDate(from) && isBusinessDate(to) && from <= to) {
+        return { mode, from, to, salaryMonth, salaryYear, valid: true };
+      }
+    }
+    if (mode === 'salary_cycle') {
+      const salaryMonth = Number(query.get('salary_month'));
+      const salaryYear = Number(query.get('salary_year'));
+      if (Number.isInteger(salaryMonth) && salaryMonth >= 1 && salaryMonth <= 12 && Number.isInteger(salaryYear) && salaryYear >= 1900 && salaryYear <= 9999) {
+        return { mode, from: range.from, to: range.to, salaryMonth, salaryYear, valid: false };
+      }
+    }
+  }
   return {
     mode: 'this_month',
     from: range.from,
     to: range.to,
-    salaryMonth: now.getMonth() + 1,
-    salaryYear: now.getFullYear(),
+    salaryMonth,
+    salaryYear,
     valid: true,
   };
 }
 
 export function PeriodControl({ accountId, value, onChange, className = '' }: PeriodControlProps) {
   const t = useTranslations('period');
+  const locale = useLocale();
   const [error, setError] = useState<string | null>(null);
   const [resolving, setResolving] = useState(false);
+  const [retry, setRetry] = useState(0);
   const onChangeRef = useRef(onChange);
   const accountIdRef = useRef(accountId);
   const valueRef = useRef(value);
@@ -75,6 +99,22 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
 
     onChangeRef.current(nextValue);
   }, []);
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('period', value.mode);
+    if (value.mode === 'salary_cycle') {
+      url.searchParams.set('salary_month', String(value.salaryMonth));
+      url.searchParams.set('salary_year', String(value.salaryYear));
+    } else {
+      url.searchParams.delete('salary_month');
+      url.searchParams.delete('salary_year');
+    }
+    if (value.valid) {
+      url.searchParams.set('from', value.from);
+      url.searchParams.set('to', value.to);
+    }
+    window.history.replaceState(null, '', url);
+  }, [value.mode, value.from, value.to, value.salaryMonth, value.salaryYear, value.valid]);
 
   const months = useMemo(
     () =>
@@ -82,18 +122,18 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
         const month = index + 1;
         return {
           value: month,
-          label: new Intl.DateTimeFormat(undefined, { month: 'short' }).format(
+          label: new Intl.DateTimeFormat(locale, { month: 'short' }).format(
             new Date(2024, index, 1),
           ),
         };
       }),
-    [],
+    [locale],
   );
 
   const years = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    return Array.from({ length: 7 }, (_, index) => currentYear - 3 + index);
-  }, []);
+    const currentYear = Number(currentMonthRange().from.slice(0, 4));
+    return [...new Set([...Array.from({ length: 7 }, (_, index) => currentYear - 3 + index), value.salaryYear])].sort((a, b) => a - b);
+  }, [value.salaryYear]);
 
   useEffect(() => {
     if (value.mode !== 'salary_cycle') {
@@ -116,6 +156,7 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
 
     setResolving(true);
     setError(null);
+    emitValue({ ...valueRef.current, valid: false });
 
     fetch(`/api/period?${params.toString()}`, { signal: controller.signal })
       .then(async (response) => {
@@ -139,6 +180,7 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
           salaryMonth: data.salaryMonth ?? value.salaryMonth,
           salaryYear: data.salaryYear ?? value.salaryYear,
           valid: true,
+          resolvedAccountId: accountId,
         });
       })
       .catch((resolveError: unknown) => {
@@ -165,7 +207,7 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
       });
 
     return () => controller.abort();
-  }, [accountId, emitValue, t, value.mode, value.salaryMonth, value.salaryYear]);
+  }, [accountId, emitValue, t, value.mode, value.salaryMonth, value.salaryYear, retry]);
 
   function selectThisMonth() {
     setError(null);
@@ -177,8 +219,8 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
     emitValue({
       ...value,
       mode: 'salary_cycle',
-      salaryMonth: value.salaryMonth || new Date().getMonth() + 1,
-      salaryYear: value.salaryYear || new Date().getFullYear(),
+      salaryMonth: value.salaryMonth || createInitialPeriodValue().salaryMonth,
+      salaryYear: value.salaryYear || createInitialPeriodValue().salaryYear,
       valid: false,
     });
   }
@@ -230,7 +272,7 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
 
         {value.mode === 'salary_cycle' && (
           <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
-            <label className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 text-xs text-white/40 sm:flex">
+            <label className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 text-xs text-white/70 sm:flex">
               <span>{t('month')}</span>
               <select
                 value={value.salaryMonth}
@@ -246,7 +288,7 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
                 ))}
               </select>
             </label>
-            <label className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 text-xs text-white/40 sm:flex">
+            <label className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 text-xs text-white/70 sm:flex">
               <span>{t('year')}</span>
               <select
                 value={value.salaryYear}
@@ -267,6 +309,7 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:flex sm:flex-wrap">
             <input
               type="date"
+              aria-label={t('from')}
               value={value.from}
               onChange={(event) => updateCustomRange({ from: event.target.value })}
               className={`${inputClass} w-full sm:w-auto`}
@@ -280,6 +323,7 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
             <span className="text-xs text-white/30">-</span>
             <input
               type="date"
+              aria-label={t('to')}
               value={value.to}
               onChange={(event) => updateCustomRange({ to: event.target.value })}
               className={`${inputClass} w-full sm:w-auto`}
@@ -295,13 +339,11 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className={value.valid ? 'text-white/40' : 'text-white/25'}>
-          {t('range', { from: value.from || '-', to: value.to || '-' })}
-        </span>
-        {resolving && <span className="text-white/25">...</span>}
+        {value.valid && <span className="text-white/70">{t('range', { from: value.from, to: value.to })}</span>}
+        {resolving && <span role="status" className="text-white/70">{t('resolving')}</span>}
       </div>
 
-      {showError && <p className="text-xs text-red-300/80">{showError}</p>}
+      {showError && <div role="alert" className="text-sm text-red-300">{showError}{value.mode === 'salary_cycle' && <button type="button" onClick={() => setRetry(n => n + 1)} className="ml-2 min-h-11 rounded border border-white/20 px-3 text-white focus-visible:outline-emerald-400">{t('retry')}</button>}</div>}
     </div>
   );
 }
@@ -319,8 +361,9 @@ function ModeButton({
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={
-        'w-full rounded-lg border px-2.5 py-1.5 text-center text-xs font-medium transition-colors sm:w-auto ' +
+        'min-h-11 w-full rounded-lg border px-2.5 py-1.5 text-center text-xs font-medium transition-colors focus-visible:outline-emerald-400 sm:w-auto ' +
         (active
           ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-200'
           : 'border-white/[0.08] bg-white/[0.04] text-white/45 hover:bg-white/[0.08] hover:text-white/70')
@@ -332,7 +375,7 @@ function ModeButton({
 }
 
 function validateCustomRange(value: PeriodValue): boolean {
-  return Boolean(value.from && value.to && value.from <= value.to);
+  return isBusinessDate(value.from) && isBusinessDate(value.to) && value.from <= value.to;
 }
 
 function periodErrorMessage(
@@ -354,6 +397,7 @@ function valueKey(value: PeriodValue): string {
     value.salaryMonth,
     value.salaryYear,
     value.valid ? 'valid' : 'invalid',
+    value.resolvedAccountId ?? '',
   ].join('|');
 }
 

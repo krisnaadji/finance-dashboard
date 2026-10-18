@@ -18,15 +18,15 @@ it('owner deactivation preserves financial and membership history',async()=>{
   expect(db.tables.accounts[0].is_active).toBe(false); expect(db.tables.members).toEqual(members); expect(db.tables.transactions).toEqual(txns);
 });
 it('category writes require login and owner',async()=>{
-  const body={account_id:ids.a,name:'Travel',type:'expense'};
+  const body={account_id:ids.a,name_en:'Travel',type:'expense'};
   resetSecurityState(null); expect((await categoryPost(json('/api/categories','POST',body))).status).toBe(401);
   resetSecurityState(ids.member); expect((await categoryPost(json('/api/categories','POST',body))).status).toBe(403);
   const db=resetSecurityState(ids.owner); expect((await categoryPost(json('/api/categories','POST',body))).status).toBe(200);
-  expect(db.tables.categories.find(r=>r.name==='Travel')).toMatchObject({account_id:ids.a,is_custom:true});
+  expect(db.tables.categories.find(r=>r.name_en==='Travel')).toMatchObject({account_id:ids.a,is_custom:true,name_id:null,parent_id:null});
 });
 it('default category remains protected, foreign category is inaccessible',async()=>{
   resetSecurityState(ids.owner);
-  expect((await categoryPatch(json('/api/categories','PATCH',{id:ids.income,name:'Renamed'}))).status).toBe(403);
+  expect((await categoryPatch(json('/api/categories','PATCH',{id:ids.income,name_en:'Renamed'}))).status).toBe(403);
   expect((await categoryDelete(new Request(`https://app.example/api/categories?id=${ids.foreign}`,{method:'DELETE'}))).status).toBe(403);
 });
 it('budget cannot point at another account or income category',async()=>{

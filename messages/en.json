@@ -11,7 +11,7 @@
     "income": "Total Income",
     "expense": "Total Expenses",
     "balance": "Balance",
-    "topExpense": "Biggest Expense",
+    "topExpense": "Top spending category",
     "noData": "No transactions this period"
   },
   "transactions": {
@@ -52,8 +52,8 @@
     "cancel": "Cancel",
     "amountInvalid": "Amount must be greater than zero",
     "saveFailed": "Failed to save transaction",
-    "budgetOver": "{category} budget exceeded: Rp{spent} / Rp{limit} ({pct}%)",
-    "budgetNear": "{category} budget: Rp{spent} / Rp{limit} ({pct}%)"
+    "budgetOver": "{category} budget exceeded: {spent} / {limit} ({pct}%)",
+    "budgetNear": "{category} budget: {spent} / {limit} ({pct}%)"
   },
   "accounts": {
     "title": "Accounts",
@@ -76,6 +76,39 @@
     "name": "Category Name",
     "custom": "Custom"
   },
+  "hierarchy": {
+    "category": "Category", "categories": "Categories", "subcategory": "Subcategory",
+    "none": "No category", "inactive": "Inactive", "uncategorized": "Uncategorized",
+    "income": "Income", "expense": "Expense", "type": "Type",
+    "addCategory": "Add category", "addTransaction": "Add transaction",
+    "originalLanguage": "Original language", "nameId": "Indonesian name", "nameEn": "English name",
+    "parent": "Parent category (optional)", "root": "No parent (root category)",
+    "suggestTranslation": "Suggest translation", "translating": "Suggesting translation...",
+    "retryTranslation": "Retry translation", "translationFailed": "Translation unavailable. Retry, enter it yourself, or save the original name.",
+    "nameRequired": "Enter at least one category name.",
+    "monthlyBudget": "Monthly budget", "monthlyBudgets": "Monthly budgets",
+    "budgetHelp": "Leave blank or enter 0 to remove the limit.",
+    "budgetInvalid": "Enter a positive budget with at most two decimal places, or 0 to remove it.",
+    "budgetPartialFailure": "Names saved, but the budget was not saved. Review the budget and retry Save.",
+    "legacyBudgetNote": "The existing Basic Needs budget stays on Basic Needs. Food & Drinks and Household have their own budgets. Only an account owner can explicitly change these limits.",
+    "budgetScope": "Current calendar month, including direct spending and all subcategories. Salary-cycle selection does not change this budget period.",
+    "direct": "Without subcategory", "allDetail": "All detail", "allTypes": "All types", "allCategories": "All categories",
+    "filtersReset": "An unavailable category filter was cleared. Review the current selection.",
+    "expenseByCategory": "Expenses by category", "chartScope": "All expenses in the selected reporting period. Select a category for its breakdown.",
+    "emptyExpenses": "No expenses in this period.", "emptyCategories": "No categories yet. An account owner can add one.",
+    "edit": "Edit", "delete": "Deactivate", "confirmDelete": "Deactivate this category? Historical transactions keep their category.",
+    "save": "Save", "saving": "Saving...", "cancel": "Cancel", "retry": "Retry", "back": "Back",
+    "loading": "Loading financial data...", "loadFailed": "Could not load financial data. Try again.",
+    "saveFailed": "Could not save the change. Your input has been kept. Try again.",
+    "search": "Search description", "clear": "Clear search", "net": "Net",
+    "transactionCount": "{count, plural, one {# transaction} other {# transactions}}",
+    "show": "Show", "page": "Page", "previous": "Previous", "next": "Next",
+    "topExpenses": "Top expenses", "topIncomes": "Top income", "overBudget": "Over budget",
+    "showHistory": "Show monthly history",
+    "budgetWarningUnavailable": "Transaction saved. The budget check is unavailable, so no warning could be shown. Review monthly budgets on the dashboard.",
+    "editConflict": "This transaction changed while you were editing it. Your input has been kept. Cancel and reload the table before trying again.",
+    "savedCategoryUnavailable": "Transaction saved with its category selection unchanged. Category names are temporarily unavailable. Refresh the table to load them; do not submit the transaction again."
+  },
   "language": { "label": "Language", "id": "Indonesian", "en": "English" },
   "auth": { "signIn": "Sign in with Google", "signOut": "Sign out" },
   "period": {
@@ -89,8 +122,10 @@
     "year": "Year",
     "range": "{from} to {to}",
     "salaryBadge": "Salary cycle: {month} {year}",
-    "salaryMissing": "No Gaji income transaction found for this salary period. Record salary first.",
+    "salaryMissing": "No regular salary transaction found for this salary period. Record salary first.",
     "invalidPeriod": "Adjust the selected period.",
-    "resolveFailed": "Failed to resolve reporting period."
+    "resolveFailed": "Failed to resolve reporting period.",
+    "from": "From", "to": "To", "retry": "Retry",
+    "resolving": "Resolving salary period..."
   }
 }

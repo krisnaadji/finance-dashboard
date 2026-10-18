@@ -1,5 +1,5 @@
 'use client';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
@@ -14,11 +14,12 @@ interface Props {
 
 export function IncomeExpenseChart({ byMonth, title }: Props) {
   const t = useTranslations('summary');
+  const locale = useLocale();
 
   const data = Object.entries(byMonth)
     .sort()
     .map(([key, vals]) => ({
-      month: new Date(key + '-01').toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }),
+      month: new Date(key + '-01T12:00:00').toLocaleDateString(locale, { month: 'short', year: '2-digit' }),
       [t('income')]: Number(vals.income),
       [t('expense')]: Number(vals.expense),
       exactIncome: vals.income,

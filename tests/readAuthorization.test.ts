@@ -23,10 +23,11 @@ it.each(entries)('%s denies anonymous and foreign reads but permits members', as
   db.tables.transactions.push({id:db.id(),account_id:ids.b,amount:'9999999.00',type:'expense',date:'2026-10-12',description:'Foreign financial record',category_id:ids.foreign});
   if (_name === 'summary' || _name === 'trend') db.rpcOverride = async () => ({ data: {
     income: '0.00', expense: '35.50', net: '-35.50',
-    categories: [{ id: ids.expense, name: 'Food', amount: '35.50' }],
+    categories: [{ id: ids.expense, name_id:'Makanan',name_en:'Food', amount: '35.50' }],
     spendingByCategoryId: { [ids.expense]: '35.50' },
+    categoryDetails:[{parentId:ids.expense,categoryId:ids.expense,amount:'35.50'}],
     byMonth: { '2026-10': { income: '0.00', expense: '35.50' } },
-    topExpenses: [{ id: ids.transaction, date: '2026-10-12', description: 'Local expense', amount: '35.50', category: 'Food' }],
+    topExpenses: [{ id: ids.transaction, date: '2026-10-12', description: 'Local expense', amount: '35.50', categories: null,parent:null }],
     topIncomes: [],
   }, error: null });
   const response=await handler(request); expect(response.status).toBe(200);

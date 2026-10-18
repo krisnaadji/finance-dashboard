@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     const access = await requireAccountOwner(body.account_id, auth.user);
     if (!access.ok) return access.response;
     const db = createAdminClient();
-    const categoryError = await validateTransactionCategory(db, body.account_id, 'expense', body.category_id, false);
+    const categoryError = await validateTransactionCategory(db, body.account_id, 'expense', body.category_id, false, true);
     if (categoryError) return categoryError;
     const saved = await db.from('budgets').upsert({
       account_id: body.account_id, category_id: body.category_id, amount, updated_at: new Date().toISOString(),
