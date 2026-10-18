@@ -78,6 +78,7 @@
   },
   "hierarchy": {
     "category": "Kategori", "categories": "Kategori", "subcategory": "Subkategori",
+    "breakdown": "Rincian", "custom": "Kustom", "default": "Bawaan",
     "none": "Tanpa kategori", "inactive": "Nonaktif", "uncategorized": "Tanpa kategori",
     "income": "Pemasukan", "expense": "Pengeluaran", "type": "Jenis",
     "addCategory": "Tambah kategori", "addTransaction": "Tambah transaksi",

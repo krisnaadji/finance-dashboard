@@ -23,11 +23,16 @@ export function CategoryPieChart({ categories, details, catalog }: Props) {
   }) : roots;
   const data = entries.filter(c => compareMoney(c.amount, '0.00') > 0).sort((a, b) => compareMoney(b.amount, a.amount)).map(c => ({ ...c, value: Number(c.amount) }));
   return <GlassCard className="p-5 overflow-hidden">
-    <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-medium text-white/80">{selected && selectedRoot ? roots.find(c => c.id === selected)?.name : t('expenseByCategory')}</h3>{selected && selectedRoot && <GlassButton onClick={() => setSelected(null)}>{t('back')}</GlassButton>}</div>
-    <p className="mt-2 text-xs text-white/70">{t('chartScope')}</p>
-    {!data.length ? <p className="py-8 text-white/70">{t('emptyExpenses')}</p> : <>
-      <ResponsiveContainer width="100%" height={240}><PieChart><Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={85} label={false} labelLine={false} onClick={(_entry, index) => { const id = data[index]?.id; if (!selected && id) setSelected(id); }}>{data.map((c, i) => <Cell key={c.id ?? 'uncategorized'} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip formatter={(_value, name, item) => [formatIDR(item.payload.amount), name]} contentStyle={{ background: '#080c10', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 10, color: '#f1f5f9' }} /></PieChart></ResponsiveContainer>
-      <ul className="space-y-1 text-sm text-white/80">{data.map((c, i) => <li key={c.id ?? 'uncategorized'}>{!selected && c.id ? <button type="button" className="flex min-h-11 w-full flex-wrap items-center justify-between gap-3 rounded px-2 text-left hover:bg-white/10 focus-visible:outline-emerald-400" onClick={() => setSelected(c.id)}><span className="min-w-0 break-words">{c.name}</span><span className="shrink-0 tabular-nums">{formatIDR(c.amount)}</span></button> : <div className="flex min-h-11 flex-wrap items-center justify-between gap-3 px-2"><span className="min-w-0 break-words">{c.name}</span><span className="shrink-0 tabular-nums">{formatIDR(c.amount)}</span></div>}<span className="sr-only">{i + 1}</span></li>)}</ul>
-    </>}
+    <div className="flex items-center justify-between gap-2 mb-4"><h3 className="text-sm font-medium" style={{ color: 'rgba(241,245,249,0.55)' }}>{selected && selectedRoot ? roots.find(c => c.id === selected)?.name : t('expenseByCategory')}</h3>{selected && selectedRoot && <GlassButton onClick={() => setSelected(null)}>{t('back')}</GlassButton>}</div>
+    <p className="sr-only">{t('chartScope')}</p>
+    {!data.length ? <p className="py-8 text-sm text-white/30">{t('emptyExpenses')}</p> : <><ResponsiveContainer width="100%" height={220}><PieChart>
+      <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="45%" outerRadius={80} label={false} labelLine={false} onClick={(_entry, index) => { const id = data[index]?.id; if (!selected && id) setSelected(id); }}>{data.map((c, i) => <Cell key={c.id ?? 'uncategorized'} fill={COLORS[i % COLORS.length]} />)}</Pie>
+      <Tooltip formatter={(_value, name, item) => [formatIDR(item.payload.amount), name]} contentStyle={{ background: 'rgba(8,12,16,0.95)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, color: '#f1f5f9', backdropFilter: 'blur(12px)' }} />
+    </PieChart></ResponsiveContainer>
+      <ul className="flex flex-wrap justify-center gap-x-3 gap-y-1 pt-2 text-[11px]" style={{ color: 'rgba(241,245,249,0.45)' }}>{data.map((c, i) => {
+        const total = data.reduce((sum, item) => sum + item.value, 0);
+        const label = <><span aria-hidden="true" className="mr-1 inline-block h-2 w-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }} /><span>{c.name}</span> {total ? (c.value / total * 100).toFixed(0) : 0}%</>;
+        return <li key={c.id ?? 'uncategorized'}>{!selected && c.id ? <button type="button" title={`${c.name}: ${formatIDR(c.amount)}`} className="rounded text-left hover:text-white focus-visible:outline-emerald-400" onClick={() => setSelected(c.id)}>{label}</button> : <span title={`${c.name}: ${formatIDR(c.amount)}`}>{label}</span>}</li>;
+      })}</ul></>}
   </GlassCard>;
 }

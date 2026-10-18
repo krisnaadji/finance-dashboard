@@ -22,9 +22,9 @@ export function CategorySelector({ categories, type, value, onChange, locale, di
     const parent = categories.find(c => c.id === category.parent_id);
     return parent ? `${categoryLabel(parent, locale)} / ${categoryLabel(category, locale)}` : categoryLabel(category, locale);
   };
-  return <label htmlFor={id} className="block min-w-0 text-sm text-white/70">
+  return <label htmlFor={id} className="block min-w-0 text-xs text-white/40">
     <span className="block mb-1">{t('category')}</span>
-    <select id={id} value={value ?? ''} disabled={disabled} onChange={e => onChange(e.target.value || null)} className="min-h-11 w-full min-w-0 rounded-lg border border-white/20 bg-[#141a20] px-3 py-2 text-white focus-visible:outline-emerald-400">
+    <select id={id} value={value ?? ''} disabled={disabled} onChange={e => onChange(e.target.value || null)} className="w-full min-w-0 rounded-lg border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-white focus-visible:outline-emerald-400">
       <option value="">{t('none')}</option>
       {retained && <option value={retained.id}>{label(retained)} ({t('inactive')})</option>}
       {options.filter(c => !c.parent_id).map(root => <optgroup key={root.id} label={categoryLabel(root, locale)}>

@@ -117,7 +117,7 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
     return <p className="text-center text-white/30 py-12 text-sm">{t('empty')}</p>;
 
   const inp =
-    'min-h-11 bg-white/[0.06] border border-white/[0.1] text-white rounded-lg px-2 py-1.5 text-sm w-full box-border focus-visible:outline-emerald-400';
+    'bg-white/[0.06] border border-white/[0.1] text-white rounded-lg px-2 py-1.5 text-sm w-full box-border focus-visible:outline-emerald-400';
 
   // Shared edit form JSX used in both mobile and desktop.
   // Keep this as a render helper, not a nested component, so inputs are not
@@ -125,17 +125,17 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
   function renderEditForm(id: string, mobile?: boolean) {
     const original = transactions.find(txn => txn.id === id);
     const history = [original?.parent, original?.categories].filter((c): c is Category => !!c && !cats.some(option => option.id === c.id));
-    return <fieldset disabled={saving} className={mobile ? 'space-y-3 w-full' : 'flex flex-wrap gap-3 items-end'}>
-      <label className="block min-w-0 flex-1 text-sm text-white/70">{t('description')}
-        <input className={inp} value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
+    return <fieldset disabled={saving} className={mobile ? 'space-y-2 w-full' : 'flex flex-wrap gap-2 items-center'}>
+      <label className={mobile ? 'block w-full' : 'block flex-1 min-w-40'}><span className="sr-only">{t('description')}</span>
+        <input className={inp} placeholder={t('description')} value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
       </label>
-      <label className="block min-w-0 text-sm text-white/70">{t('amount')}
-        <input className={inp} inputMode="decimal" value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} />
+      <label className={mobile ? 'block w-full' : 'block w-32'}><span className="sr-only">{t('amount')}</span>
+        <input className={inp} placeholder={t('amount')} inputMode="decimal" value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} />
       </label>
-      <label className="block min-w-0 text-sm text-white/70">{t('date')}
+      <label className={mobile ? 'block w-full' : 'block w-36'}><span className="sr-only">{t('date')}</span>
         <input className={inp} type="date" style={{ colorScheme: 'dark', maxWidth: '100%', appearance: 'none' }} value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} />
       </label>
-      <label className="block min-w-0 text-sm text-white/70">{t('type')}
+      <label className={mobile ? 'block w-full' : 'block w-28'}><span className="sr-only">{t('type')}</span>
         <select className={inp} value={editForm.type} onChange={e => setEditForm(f => ({ ...f, type: e.target.value, category_id: '' }))}>
           <option value="expense" className="bg-[#1a1a1f]">{t('expense')}</option>
           <option value="income" className="bg-[#1a1a1f]">{t('income')}</option>
@@ -143,8 +143,8 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
       </label>
       <CategorySelector categories={[...cats, ...history]} type={editForm.type as CategoryType} value={editForm.category_id || null} onChange={value => setEditForm(f => ({ ...f, category_id: value ?? '' }))} locale={locale} historicalValue={original?.categories} disabled={saving || catalogLoading || catalogError} />
       <div className="flex gap-2">
-        <button type="button" onClick={() => saveEdit(id)} disabled={saving} className="min-h-11 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm text-white disabled:opacity-40 focus-visible:outline-emerald-400">{h(saving ? 'saving' : 'save')}</button>
-        <button type="button" onClick={() => { editRevision.current++; setEditing(null); }} className="min-h-11 rounded-lg bg-white/[0.06] px-3 py-1.5 text-sm text-white/80 focus-visible:outline-emerald-400">{h('cancel')}</button>
+        <button type="button" onClick={() => saveEdit(id)} disabled={saving} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm text-white disabled:opacity-40 focus-visible:outline-emerald-400">{h(saving ? 'saving' : 'save')}</button>
+        <button type="button" onClick={() => { editRevision.current++; setEditing(null); }} className="rounded-lg bg-white/[0.06] px-3 py-1.5 text-sm text-white/60 focus-visible:outline-emerald-400">{h('cancel')}</button>
       </div>
     </fieldset>;
   }
@@ -153,7 +153,7 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
     <div>
       {error && <p role="alert" className="p-3 text-red-300">{error}</p>}
       {catalogLoading && editing && <p role="status" className="p-3 text-white/70">{h('loading')}</p>}
-      {catalogError && <div role="alert" className="p-3 text-red-300">{h('loadFailed')} <button type="button" onClick={() => setCatalogTick(n => n + 1)} className="min-h-11 rounded border border-white/20 px-3 text-white focus-visible:outline-emerald-400">{h('retry')}</button></div>}
+      {catalogError && <div role="alert" className="p-3 text-red-300">{h('loadFailed')} <button type="button" onClick={() => setCatalogTick(n => n + 1)} className="rounded border border-white/20 px-3 text-white focus-visible:outline-emerald-400">{h('retry')}</button></div>}
       {/* ── MOBILE: card view ── */}
       <div className="md:hidden divide-y divide-white/[0.06]">
         {transactions.map((txn) => (
@@ -190,14 +190,14 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
                     <>
                         <button
                           onClick={() => startEdit(txn)}
-                          className="min-h-11 min-w-11 text-xs text-white/80 hover:text-white focus-visible:outline-emerald-400"
+                          className="text-xs text-white/30 hover:text-white/60 focus-visible:outline-emerald-400"
                         >
                           {t('edit')}
                         </button>
                         {isOwner !== false && <button
                           onClick={() => handleDelete(txn.id)}
                           disabled={deleting === txn.id}
-                          className="min-h-11 min-w-11 text-xs text-red-300 hover:text-red-200 disabled:opacity-40 focus-visible:outline-emerald-400"
+                          className="text-xs text-red-400/60 hover:text-red-400 disabled:opacity-40 focus-visible:outline-emerald-400"
                         >
                           {deleting === txn.id ? '...' : t('delete')}
                         </button>}
@@ -238,7 +238,7 @@ export function TransactionTable({ transactions, onDelete, onUpdate, isOwner, is
                       {formatDate(txn.date, locale)}
                     </td>
                     <td className="px-4 py-3 text-white/80 font-medium">{txn.description}</td>
-                    <td className="px-4 py-3 text-white/70">{txn.categories ? categoryPath(txn.categories, txn.parent ? [txn.parent, txn.categories] : [txn.categories], locale) : h('uncategorized')}</td>
+                    <td className="px-4 py-3 text-white/40">{txn.categories ? categoryPath(txn.categories, txn.parent ? [txn.parent, txn.categories] : [txn.categories], locale) : h('uncategorized')}</td>
                     <td className="px-4 py-3">
                       <span
                         className={

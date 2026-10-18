@@ -68,7 +68,7 @@ function Card({
       />
       <p
         className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest mb-3"
-        style={{ color: 'rgba(241,245,249,0.7)' }}
+        style={{ color: 'rgba(241,245,249,0.3)' }}
       >
         <span
           aria-hidden
@@ -78,13 +78,13 @@ function Card({
         {label}
       </p>
       <p
-        className="break-words [overflow-wrap:anywhere] text-lg sm:text-xl md:text-2xl font-semibold tracking-tight leading-snug"
+        className={`text-xl md:text-2xl font-semibold tracking-tight leading-none ${accent === 'amber' ? 'break-words' : 'whitespace-nowrap'}`}
         style={{ color: text }}
       >
         {value}
       </p>
       {sub && (
-        <p className="text-xs mt-1.5 break-words" style={{ color: 'rgba(241,245,249,0.7)' }}>
+        <p className="text-xs mt-1.5" style={{ color: 'rgba(241,245,249,0.3)' }}>
           {sub}
         </p>
       )}

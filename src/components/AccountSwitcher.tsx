@@ -93,7 +93,7 @@ export function AccountSwitcher() {
     };
   }, []);
 
-  if (loadError) return <div role="alert" className="p-2 text-sm text-red-300">{h('loadFailed')} <button type="button" onClick={loadAccounts} className="min-h-11 rounded border border-white/20 px-3 text-white focus-visible:outline-emerald-400">{h('retry')}</button></div>;
+  if (loadError) return <div role="alert" className="p-2 text-sm text-red-300">{h('loadFailed')} <button type="button" onClick={loadAccounts} className="rounded border border-white/20 px-3 text-white focus-visible:outline-emerald-400">{h('retry')}</button></div>;
   if (!accounts.length) return null;
 
   function handleChange(id: string) {
@@ -108,13 +108,13 @@ export function AccountSwitcher() {
 
   return (
     <div className="px-1">
-      <label htmlFor="account-switcher" className="mb-1.5 block px-2 text-sm font-medium text-white/70">
+      <label htmlFor="account-switcher" className="block text-[10px] font-medium text-white/30 uppercase tracking-widest mb-1.5 px-2">
         {t('title')}
       </label>
       <select id="account-switcher"
         value={current}
         onChange={(e) => handleChange(e.target.value)}
-        className="min-h-11 w-full bg-white/[0.06] border border-white/20 text-white text-sm rounded-lg px-3 py-2 cursor-pointer hover:bg-white/[0.1] transition-colors focus-visible:outline-emerald-400"
+        className="w-full bg-white/[0.06] border border-white/[0.08] text-white text-sm rounded-lg px-3 py-2 appearance-none cursor-pointer hover:bg-white/[0.1] transition-colors focus-visible:outline-emerald-400"
       >
         {accounts.map((a) => (
           <option key={a.id} value={a.id} className="bg-[#1a1a1f] text-white">

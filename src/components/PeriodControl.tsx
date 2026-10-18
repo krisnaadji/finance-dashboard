@@ -39,7 +39,7 @@ type PeriodApiResponse =
     };
 
 const inputClass =
-  'min-h-11 min-w-0 bg-white/[0.06] border border-white/[0.1] text-white rounded-lg px-2.5 py-1.5 text-xs focus-visible:outline-emerald-400';
+  'min-w-0 bg-white/[0.06] border border-white/[0.1] text-white rounded-lg px-2.5 py-1.5 text-xs focus-visible:outline-emerald-400';
 
 export function createInitialPeriodValue(now = new Date(), restoreQuery = false): PeriodValue {
   const range = currentMonthRange(now);
@@ -272,7 +272,7 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
 
         {value.mode === 'salary_cycle' && (
           <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
-            <label className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 text-xs text-white/70 sm:flex">
+            <label className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 text-xs text-white/40 sm:flex">
               <span>{t('month')}</span>
               <select
                 value={value.salaryMonth}
@@ -288,7 +288,7 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
                 ))}
               </select>
             </label>
-            <label className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 text-xs text-white/70 sm:flex">
+            <label className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 text-xs text-white/40 sm:flex">
               <span>{t('year')}</span>
               <select
                 value={value.salaryYear}
@@ -339,11 +339,11 @@ export function PeriodControl({ accountId, value, onChange, className = '' }: Pe
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        {value.valid && <span className="text-white/70">{t('range', { from: value.from, to: value.to })}</span>}
-        {resolving && <span role="status" className="text-white/70">{t('resolving')}</span>}
+        {value.valid && <span className="text-white/40">{t('range', { from: value.from, to: value.to })}</span>}
+        {resolving && <span role="status" className="text-white/25">{t('resolving')}</span>}
       </div>
 
-      {showError && <div role="alert" className="text-sm text-red-300">{showError}{value.mode === 'salary_cycle' && <button type="button" onClick={() => setRetry(n => n + 1)} className="ml-2 min-h-11 rounded border border-white/20 px-3 text-white focus-visible:outline-emerald-400">{t('retry')}</button>}</div>}
+      {showError && <div role="alert" className="text-sm text-red-300">{showError}{value.mode === 'salary_cycle' && <button type="button" onClick={() => setRetry(n => n + 1)} className="ml-2 rounded border border-white/20 px-3 text-white focus-visible:outline-emerald-400">{t('retry')}</button>}</div>}
     </div>
   );
 }
@@ -363,7 +363,7 @@ function ModeButton({
       onClick={onClick}
       aria-pressed={active}
       className={
-        'min-h-11 w-full rounded-lg border px-2.5 py-1.5 text-center text-xs font-medium transition-colors focus-visible:outline-emerald-400 sm:w-auto ' +
+        'w-full rounded-lg border px-2.5 py-1.5 text-center text-xs font-medium transition-colors focus-visible:outline-emerald-400 sm:w-auto ' +
         (active
           ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-200'
           : 'border-white/[0.08] bg-white/[0.04] text-white/45 hover:bg-white/[0.08] hover:text-white/70')
