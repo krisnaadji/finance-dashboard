@@ -78,6 +78,7 @@
   },
   "hierarchy": {
     "category": "Category", "categories": "Categories", "subcategory": "Subcategory",
+    "breakdown": "Breakdown", "custom": "Custom", "default": "Default",
     "none": "No category", "inactive": "Inactive", "uncategorized": "Uncategorized",
     "income": "Income", "expense": "Expense", "type": "Type",
     "addCategory": "Add category", "addTransaction": "Add transaction",

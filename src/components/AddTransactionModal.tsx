@@ -190,7 +190,7 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
           <h2 id={titleId} className="text-lg font-semibold text-white">{t('title')}</h2>
           <button
             onClick={onClose}
-            className="min-h-11 min-w-11 text-white/70 hover:text-white text-xl leading-none focus-visible:outline-emerald-400"
+            className="text-white/40 hover:text-white/80 text-xl leading-none focus-visible:outline-emerald-400"
             aria-label={h('cancel')}
           >
             ×
@@ -219,13 +219,13 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
           <form onSubmit={handleSubmit} className="space-y-3"><fieldset disabled={saving} className="space-y-3">
             {/* Type toggle */}
             <div>
-              <p className="mb-1 text-sm text-white/70">{t('type')}</p>
+              <p className="text-xs text-white/40 mb-1">{t('type')}</p>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setType('expense')}
                   aria-pressed={type === 'expense'}
-                  className={`min-h-11 rounded-lg border px-3 py-2 text-sm transition-colors focus-visible:outline-emerald-400 ${
+                  className={`rounded-lg border px-3 py-2 text-sm transition-colors focus-visible:outline-emerald-400 ${
                     type === 'expense'
                       ? 'border-red-500/40 bg-red-500/10 text-red-300'
                       : 'border-white/[0.1] bg-white/[0.04] text-white/60 hover:bg-white/[0.08]'
@@ -237,7 +237,7 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
                   type="button"
                   onClick={() => setType('income')}
                   aria-pressed={type === 'income'}
-                  className={`min-h-11 rounded-lg border px-3 py-2 text-sm transition-colors focus-visible:outline-emerald-400 ${
+                  className={`rounded-lg border px-3 py-2 text-sm transition-colors focus-visible:outline-emerald-400 ${
                     type === 'income'
                       ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
                       : 'border-white/[0.1] bg-white/[0.04] text-white/60 hover:bg-white/[0.08]'
@@ -250,20 +250,20 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
 
             {/* Date */}
             <div>
-              <label htmlFor={`${titleId}-date`} className="mb-1 block text-sm text-white/70">{t('date')}</label>
+              <label htmlFor={`${titleId}-date`} className="block text-xs text-white/40 mb-1">{t('date')}</label>
               <input
                 type="date"
                 id={`${titleId}-date`}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
-                className="min-h-11 w-full rounded-lg border border-white/20 bg-white/[0.06] text-white px-3 py-2 text-sm [color-scheme:dark] appearance-none focus-visible:outline-emerald-400"
+                className="w-full rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-2 text-sm [color-scheme:dark] appearance-none focus-visible:outline-emerald-400"
               />
             </div>
 
             {/* Amount */}
             <div>
-              <label htmlFor={`${titleId}-amount`} className="mb-1 block text-sm text-white/70">{t('amount')}</label>
+              <label htmlFor={`${titleId}-amount`} className="block text-xs text-white/40 mb-1">{t('amount')}</label>
               <input
                 type="number"
                 id={`${titleId}-amount`}
@@ -274,7 +274,7 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
                 onChange={(e) => setAmount(e.target.value)}
                 required
                 placeholder="0"
-                className="min-h-11 w-full rounded-lg border border-white/20 bg-white/[0.06] text-white px-3 py-2 text-sm [appearance:textfield] focus-visible:outline-emerald-400"
+                className="w-full rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-2 text-sm [appearance:textfield] focus-visible:outline-emerald-400"
               />
             </div>
 
@@ -284,14 +284,14 @@ export function AddTransactionModal({ accountId, open, onClose, onCreated }: Pro
 
             {/* Description */}
             <div>
-              <label htmlFor={`${titleId}-description`} className="mb-1 block text-sm text-white/70">{t('description')}</label>
+              <label htmlFor={`${titleId}-description`} className="block text-xs text-white/40 mb-1">{t('description')}</label>
               <input
                 type="text"
                 id={`${titleId}-description`}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={t('descriptionPlaceholder')}
-                className="min-h-11 w-full rounded-lg border border-white/20 bg-white/[0.06] text-white placeholder:text-white/60 px-3 py-2 text-sm focus-visible:outline-emerald-400"
+                className="w-full rounded-lg border border-white/[0.1] bg-white/[0.06] text-white placeholder:text-white/20 px-3 py-2 text-sm focus-visible:outline-emerald-400"
               />
             </div>
 

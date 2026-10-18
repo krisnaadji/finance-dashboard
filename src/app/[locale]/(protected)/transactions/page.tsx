@@ -5,6 +5,7 @@ import { useAccountId, useAccountRole, useAccountType } from '@/components/Accou
 import { TransactionTable } from '@/components/TransactionTable';
 import { AddTransactionModal } from '@/components/AddTransactionModal';
 import { PeriodControl, createInitialPeriodValue, type PeriodValue } from '@/components/PeriodControl';
+import { GlowBadge } from '@/components/ui/GlowBadge';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassButton } from '@/components/ui/GlassButton';
 import { categoryLabel, categoryPath, type Category, type CategoryLocale } from '@/lib/categories';
@@ -12,7 +13,7 @@ import type { Summary, TransactionRow } from '@/lib/reporting-contract';
 import { parseTransactionFilters } from '@/lib/transaction-filters';
 import { formatIDR } from '@/lib/utils';
 
-const control = 'min-h-11 min-w-0 rounded-lg border border-white/20 bg-[#141a20] px-3 py-2 text-sm text-white focus-visible:outline-emerald-400';
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100, 99999];
 function initialQuery() { return typeof window === 'undefined' ? new URLSearchParams() : new URLSearchParams(window.location.search); }
 
 export default function TransactionsPage() {
@@ -35,6 +36,7 @@ export default function TransactionsPage() {
   const catalogScope = useRef('');
   const catalogRequest = useRef('');
   catalogRequest.current = `${accountId}|${catalogTick}`;
+  const [jumpInput, setJumpInput] = useState('');
   const [exporting, setExporting] = useState(false); const [exportError, setExportError] = useState('');
   const [savedNotice, setSavedNotice] = useState('');
   const restored = useRef(false); const currentKey = useRef('');
@@ -109,25 +111,223 @@ export default function TransactionsPage() {
     finally { setExporting(false); }
   }
   const parent = categories.find(c => c.id === categoryId); const totalPages = Math.max(1, Math.ceil(total / size));
-  return <div className="space-y-4">
-    <div className="flex flex-wrap items-center justify-between gap-2"><h1 className="text-xl font-semibold text-white">{t('title')}</h1><div className="flex gap-2"><GlassButton onClick={() => setAddOpen(true)} disabled={!accountId}>{t('add')}</GlassButton><GlassButton onClick={exportCSV} disabled={!params || exporting}>{t(exporting ? 'exporting' : 'exportCsv')}</GlassButton></div></div>
-    <AddTransactionModal accountId={accountId} open={addOpen} onClose={() => setAddOpen(false)} onCreated={() => setTick(n => n + 1)} />
-    <GlassCard className="space-y-3 p-4"><PeriodControl accountId={accountId} value={period} onChange={setPeriod} />
-      <div className="grid gap-3 sm:grid-cols-3"><label className="text-sm text-white/70">{h('type')}<select className={control + ' w-full'} value={type} onChange={e => { setType(e.target.value); setCategoryId(''); setDetail(''); }}><option value="">{h('allTypes')}</option><option value="expense">{t('expense')}</option><option value="income">{t('income')}</option></select></label>
-      <label className="text-sm text-white/70">{t('category')}<select className={control + ' w-full'} value={categoryId} onChange={e => { setCategoryId(e.target.value); setDetail(''); }}><option value="">{h('allCategories')}</option>{categories.filter(c => !c.parent_id && (!type || c.type === type)).map(c => <option key={c.id} value={c.id}>{categoryLabel(c, locale)}</option>)}{parent?.parent_id && <option value={parent.id}>{categoryPath(parent, categories, locale)}</option>}</select></label>
-      {parent && !parent.parent_id && <label className="text-sm text-white/70">{h('subcategory')}<select className={control + ' w-full'} value={detail} onChange={e => setDetail(e.target.value)}><option value="">{h('allDetail')}</option><option value="direct">{h('direct')}</option>{categories.filter(c => c.parent_id === categoryId).map(c => <option key={c.id} value={c.id}>{categoryLabel(c, locale)}</option>)}</select></label>}</div>
-      <form onSubmit={e => { e.preventDefault(); setSearch(draftSearch); }} className="flex flex-wrap items-end gap-2"><label className="min-w-0 flex-1 text-sm text-white/70">{h('search')}<input className={control + ' w-full'} value={draftSearch} onChange={e => setDraftSearch(e.target.value)} /></label><GlassButton type="submit">{h('search')}</GlassButton>{search && <GlassButton onClick={() => { setSearch(''); setDraftSearch(''); }}>{h('clear')}</GlassButton>}</form>
-    </GlassCard>
-    {filterNotice && <p role="status" className="text-amber-300">{filterNotice}</p>}
-    {savedNotice && <p role="status" className="text-amber-300">{savedNotice}</p>}
-    {catalogLoading && <p role="status" className="text-white/70">{h('loading')}</p>}
-    {catalogError && <div role="alert" className="text-red-300">{h('loadFailed')} <GlassButton onClick={() => setCatalogTick(n => n + 1)}>{h('retry')}</GlassButton></div>}
-    {summary && <GlassCard className="flex flex-wrap gap-5 p-4 text-white"><span>{t('income')}: {formatIDR(summary.income)}</span><span>{t('expense')}: {formatIDR(summary.expense)}</span><span>{h('net')}: {formatIDR(summary.net)}</span></GlassCard>}
-    {exportError && <p role="alert" className="text-red-300">{exportError}</p>}
-    {error && <div role="alert" className="text-red-300">{error} <GlassButton onClick={() => setTick(n => n + 1)}>{h('retry')}</GlassButton></div>}
-    {loading && <p role="status" className="text-white/70">{h('loading')}</p>}
-    <div className="flex flex-wrap items-center justify-between gap-3 text-white/70"><span>{h('transactionCount', { count: total })}</span><label>{h('show')} <select className={control} value={size} onChange={e => setSize(Number(e.target.value))}>{[5, 10, 20, 50, 100, 99999].map(s => <option key={s} value={s}>{s === 99999 ? h('allDetail') : s}</option>)}</select></label></div>
-    {!loading && !error && !catalogLoading && !catalogError && params && <GlassCard><TransactionTable transactions={rows} onDelete={() => setTick(n => n + 1)} onUpdate={txn => { setSavedNotice(txn.categoryProjectionError ? h('savedCategoryUnavailable') : ''); setTick(n => n + 1); }} isOwner={owner} isGroup={group} /></GlassCard>}
-    {totalPages > 1 && <div className="flex flex-wrap items-center justify-between gap-3 text-white/70"><GlassButton disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{h('previous')}</GlassButton><label>{h('page')} <input aria-label={h('page')} type="number" min={1} max={totalPages} value={page} onChange={e => { const p = Number(e.target.value); if (Number.isInteger(p) && p >= 1 && p <= totalPages) setPage(p); }} className={control + ' w-20'} /> / {totalPages}</label><GlassButton disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{h('next')}</GlassButton></div>}
-  </div>;
+  const filteredCategories = categories.filter(c => !c.parent_id && (!type || c.type === type));
+  const hasActiveFilters = !!(type || categoryId || search);
+  const showPagination = size !== 99999 && totalPages > 1;
+  function handleJump() { const n = Number(jumpInput); if (Number.isInteger(n) && n >= 1 && n <= totalPages) setPage(n); setJumpInput(''); }
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4 gap-2">
+        <h1 className="text-xl font-semibold text-white">{t('title')}</h1>
+        <div className="flex gap-2">
+          <GlassButton variant="primary" onClick={() => setAddOpen(true)}>
+            + {t('add')}
+          </GlassButton>
+          <GlassButton variant="ghost" onClick={exportCSV} disabled={!params || exporting} aria-busy={exporting}>
+            {t('exportCsv')}
+          </GlassButton>
+        </div>
+      </div>
+      {exporting && <p className="mb-3 text-sm text-white" role="status" aria-live="polite">{t('exporting')}</p>}
+      {exportError && <p className="mb-3 text-sm text-white" role="alert">{exportError}</p>}
+
+      <AddTransactionModal
+        accountId={accountId}
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onCreated={() => setTick((n) => n + 1)}
+      />
+
+      {/* Filters */}
+      <GlassCard className="p-3 md:p-4 mb-4">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+          <PeriodControl
+            accountId={accountId}
+            value={period}
+            onChange={setPeriod}
+            className="w-full"
+          />
+          <div className="flex gap-2 w-full sm:w-auto">
+            <select
+              aria-label={h('type')}
+              value={type}
+              onChange={(e) => {
+                setType(e.target.value);
+                setCategoryId(''); setDetail('');
+              }}
+              className="flex-1 rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-1.5 text-sm"
+            >
+              <option value="" className="bg-[#1a1a1f]">
+                {h('allTypes')}
+              </option>
+              <option value="expense" className="bg-[#1a1a1f]">
+                Expense
+              </option>
+              <option value="income" className="bg-[#1a1a1f]">
+                Income
+              </option>
+            </select>
+            <select
+              aria-label={t('category')}
+              value={categoryId}
+              onChange={(e) => { setCategoryId(e.target.value); setDetail(''); }}
+              className="flex-1 rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-1.5 text-sm"
+            >
+              <option value="" className="bg-[#1a1a1f]">
+                {h('allCategories')}
+              </option>
+              {filteredCategories.map((c) => (
+                <option key={c.id} value={c.id} className="bg-[#1a1a1f]">
+                  {categoryLabel(c, locale)}
+                </option>
+              ))}
+            </select>
+          </div>
+          {parent && !parent.parent_id && <select aria-label={h('subcategory')} value={detail} onChange={e => setDetail(e.target.value)} className="min-w-0 rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-3 py-1.5 text-sm"><option value="" className="bg-[#1a1a1f]">{h('allDetail')}</option><option value="direct" className="bg-[#1a1a1f]">{h('direct')}</option>{categories.filter(c => c.parent_id === parent.id).map(c => <option key={c.id} value={c.id} className="bg-[#1a1a1f]">{categoryLabel(c, locale)}</option>)}</select>}
+          <div className="flex gap-2 w-full sm:w-auto sm:flex-1 sm:max-w-xs">
+            <input
+              type="text"
+              aria-label={h('search')}
+              placeholder="Search description..."
+              value={draftSearch}
+              onChange={(e) => setDraftSearch(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && setSearch(draftSearch)}
+              className="flex-1 rounded-lg border border-white/[0.1] bg-white/[0.06] text-white placeholder:text-white/20 px-3 py-1.5 text-sm"
+            />
+            <button
+              onClick={() => setSearch(draftSearch)}
+              className="rounded-lg bg-white/[0.06] border border-white/[0.1] text-white/60 px-3 py-1.5 text-sm hover:bg-white/[0.1] whitespace-nowrap"
+            >
+              Search
+            </button>
+            {search && (
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setDraftSearch('');
+                }}
+                className="rounded-lg bg-white/[0.06] border border-white/[0.1] text-white/40 px-3 py-1.5 text-sm hover:bg-white/[0.1]"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+      </GlassCard>
+
+      {filterNotice && <p role="status" className="mb-3 text-xs text-amber-300">{filterNotice}</p>}
+      {savedNotice && <p role="status" className="mb-3 text-xs text-amber-300">{savedNotice}</p>}
+      {catalogError && <div role="alert" className="mb-3 text-sm text-red-300">{h('loadFailed')} <GlassButton onClick={() => setCatalogTick(n => n + 1)}>{h('retry')}</GlassButton></div>}
+      {error && <div role="alert" className="mb-3 text-sm text-red-300">{error} <GlassButton onClick={() => setTick(n => n + 1)}>{h('retry')}</GlassButton></div>}
+      {summary && <div className="mb-3 flex flex-wrap gap-4 text-xs text-white/40"><span>{t('income')}: {formatIDR(summary.income)}</span><span>{t('expense')}: {formatIDR(summary.expense)}</span><span>{h('net')}: {formatIDR(summary.net)}</span></div>}
+      {/* Active filters + result count + page size */}
+      <div className="flex gap-2 mb-3 flex-wrap items-center">
+        {hasActiveFilters && (
+          <>
+            {type && (
+              <GlowBadge
+                color="sky"
+                className="cursor-pointer"
+                onClick={() => {
+                  setType('');
+                  setCategoryId('');
+                }}
+              >
+                {type} ×
+              </GlowBadge>
+            )}
+            {categoryId && (
+              <GlowBadge color="sky" className="cursor-pointer" onClick={() => { setCategoryId(''); setDetail(''); }}>
+                {parent ? categoryPath(parent, categories, locale) : ''} ×
+              </GlowBadge>
+            )}
+            {search && (
+              <GlowBadge
+                color="sky"
+                className="cursor-pointer"
+                onClick={() => {
+                  setSearch('');
+                  setDraftSearch('');
+                }}
+              >
+                &ldquo;{search}&rdquo; ×
+              </GlowBadge>
+            )}
+          </>
+        )}
+        <div className="ml-auto flex items-center gap-3">
+          <span className="text-xs text-white/30">
+            {total} transaction{total !== 1 ? 's' : ''}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-white/30">Show</span>
+            <select
+              aria-label={h('show')}
+              value={String(size)}
+              onChange={(e) =>
+                setSize(
+                  Number(e.target.value),
+                )
+              }
+              className="rounded-lg border border-white/[0.1] bg-white/[0.06] text-white px-2 py-1 text-xs"
+            >
+              {PAGE_SIZE_OPTIONS.map((s) => (
+                <option key={String(s)} value={String(s)} className="bg-[#1a1a1f]">
+                  {s === 99999 ? 'All' : s}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {loading && <p className="text-white/30 text-sm animate-pulse mb-3">Loading...</p>}
+
+      {!loading && !error && !catalogLoading && !catalogError && params && <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] overflow-hidden"><TransactionTable transactions={rows} onDelete={() => setTick(n => n + 1)} onUpdate={txn => { setSavedNotice(txn.categoryProjectionError ? h('savedCategoryUnavailable') : ''); setTick(n => n + 1); }} isOwner={owner} isGroup={group} /></div>}
+
+      {/* Pagination */}
+      {showPagination && (
+        <div className="flex items-center justify-between mt-4 gap-3 flex-wrap">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="rounded-lg bg-white/[0.06] border border-white/[0.1] text-white/60 px-4 py-1.5 text-sm hover:bg-white/[0.1] disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            ← Prev
+          </button>
+
+          {/* Jump to page */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-white/30">Page</span>
+            <input
+              type="number"
+              aria-label={h('page')}
+              min={1}
+              max={totalPages}
+              value={jumpInput}
+              placeholder={String(page)}
+              onChange={(e) => setJumpInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleJump()}
+              className="w-14 rounded-lg border border-white/[0.1] bg-white/[0.06] text-white text-center px-2 py-1 text-xs [appearance:textfield]"
+            />
+            <span className="text-xs text-white/30">of {totalPages}</span>
+            <button
+              onClick={handleJump}
+              className="rounded-lg bg-white/[0.06] border border-white/[0.1] text-white/40 px-2.5 py-1 text-xs hover:bg-white/[0.1]"
+            >
+              Go
+            </button>
+          </div>
+
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="rounded-lg bg-white/[0.06] border border-white/[0.1] text-white/60 px-4 py-1.5 text-sm hover:bg-white/[0.1] disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            Next →
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }

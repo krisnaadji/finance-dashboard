@@ -38,8 +38,8 @@ export function LanguageSwitcher() {
             e.preventDefault();
             switchLocale(loc);
           }}
-          className={`min-h-11 flex-1 py-2 text-sm md:text-xs font-medium cursor-pointer select-none transition-all duration-150 focus-visible:outline-emerald-400 ${
-            loc === locale ? 'bg-white/[0.12] text-white' : 'text-white/70 hover:text-white'
+          className={`flex-1 py-2 md:py-1.5 text-sm md:text-xs font-medium cursor-pointer select-none transition-all duration-150 focus-visible:outline-emerald-400 ${
+            loc === locale ? 'bg-white/[0.12] text-white' : 'text-white/35 hover:text-white/60'
           }`}
         >
           {loc === 'id' ? 'ID' : 'EN'}
