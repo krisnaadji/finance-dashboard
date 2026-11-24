@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { LinkCodeModal } from '@/components/LinkCodeModal';
-import { useAccountRole, refreshAccountSwitcher } from '@/components/AccountSwitcher';
+import { refreshAccountSwitcher } from '@/components/AccountSwitcher';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlowBadge } from '@/components/ui/GlowBadge';
 import { GlassButton } from '@/components/ui/GlassButton';
@@ -24,8 +24,6 @@ interface Account {
 
 export default function AccountsPage() {
   const t = useTranslations('accounts');
-  const accountRole = useAccountRole();
-  const isOwner = accountRole === 'owner';
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [name, setName] = useState('');
