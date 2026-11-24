@@ -278,6 +278,8 @@ The bot repository contains `scripts/inspect-phase1-catalog.sql` and the expand/
 
 `consume_delete_confirmation` locks the account, pending request, and target, checks expiry using the database clock after lock waits, and consumes the prompt with the deletion in one transaction. Execution is restricted to the service role. The handler calls this RPC when delete confirmations are enabled; a plain `ya` or `tidak` from the original sender and chat is accepted without requiring a direct reply to the prompt. Confirmation prompts remain bounded by their original 60-second expiry.
 
+Live acceptance: real WhatsApp cancellation and deletion passed in production. Database checks confirmed cancellation retained the test transaction and deletion consumed it and its confirmation; trial fixtures were removed and delete confirmations stay enabled. Fresh-account linking and group/shared-chat live checks were deferred and remain unverified.
+
 
 Mutation origin checks use the inbound `Host` header with the request scheme. Next.js can normalize a loopback request URL to `localhost`, which must not change whether the browser's actual origin is accepted.
 
