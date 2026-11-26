@@ -34,6 +34,27 @@ it('permits untranslated custom labels and soft-deactivates without changing his
   expect(db.tables.categories.find(c=>c.id===row.id)).toMatchObject({is_active:false});
   expect(db.tables.transactions[0].category_id).toBe(row.id);
 });
+it('returns a usable active hierarchy while retaining children of deactivated roots in history', async () => {
+  const db = resetSecurityState(ids.owner);
+  const created = await categories.POST(request('POST',{account_id:ids.a,parent_id:ids.expense,name_en:'Dining',type:'expense'}));
+  expect(created.status).toBe(200);
+  const child = await created.json();
+  const url = `https://app.example/api/categories?account_id=${ids.a}`;
+  expect(await (await categories.GET(new Request(url))).json()).toContainEqual(child);
+  expect((await categories.DELETE(new Request(`https://app.example/api/categories?id=${ids.expense}`,{method:'DELETE'}))).status).toBe(200);
+  expect(await (await categories.GET(new Request(url))).json()).not.toContainEqual(child);
+  expect(await (await categories.GET(new Request(url+'&include_inactive=true'))).json()).toEqual(expect.arrayContaining([
+    child, expect.objectContaining({id:ids.expense,is_active:false}),
+  ]));
+  expect(db.tables.categories.find(row=>row.id===child.id)?.is_active).toBe(true);
+});
+it('allows a partial label update on a bot-created row with a legacy multiline label', async () => {
+  const db = resetSecurityState(ids.owner);
+  db.tables.categories[0].name_id = 'Makanan\nMinuman';
+  expect((await categories.PATCH(request('PATCH',{id:ids.expense,name_en:'Food and drinks'}))).status).toBe(200);
+  expect(db.tables.categories[0]).toMatchObject({name_id:'Makanan\nMinuman',name_en:'Food and drinks'});
+  expect((await categories.PATCH(request('PATCH',{id:ids.expense,name_en:'Food\nDrinks'}))).status).toBe(400);
+});
 it('denies member category edits and salary children without writes', async () => {
   const db = resetSecurityState(ids.member);
   const before = structuredClone(db.tables.categories);
