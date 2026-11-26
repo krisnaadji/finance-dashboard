@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { AccountSwitcher } from '@/components/AccountSwitcher';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { SignOutButton } from '@/components/SignOutButton';
-import { NavLink } from '@/components/NavLink';
+import { MainNav } from '@/components/MainNav';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,10 +67,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
 
         {/* Nav Links */}
         <nav className="flex-1 px-3 py-3 space-y-0.5">
-          <NavLink href="/dashboard" icon="▦" label="Dashboard" />
-          <NavLink href="/transactions" icon="⇅" label="Transactions" />
-          <NavLink href="/accounts" icon="◎" label="Accounts" />
-          <NavLink href="/categories" icon="⊞" label="Categories" />
+          <MainNav />
         </nav>
 
         {/* Footer */}
@@ -114,10 +111,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
             borderTop: '1px solid rgba(255,255,255,0.07)',
           }}
         >
-          <NavLink href="/dashboard" icon="▦" label="Dashboard" />
-          <NavLink href="/transactions" icon="⇅" label="Txn" />
-          <NavLink href="/accounts" icon="◎" label="Accounts" />
-          <NavLink href="/categories" icon="⊞" label="Categories" />
+          <MainNav compact />
         </nav>
 
         {/* Main content */}
